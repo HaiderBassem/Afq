@@ -6,8 +6,9 @@
 #include<QString>
 
 
-#include "data/personDAL.h"
-#include"data/schoolDAL.h"
+#include"data/AcademicYearDAL.h"
+#include "data/PersonDAL.h"
+#include"data/SchoolDAL.h"
 
 using namespace DataAccess;
 
@@ -22,7 +23,7 @@ int main(int argc, char *argv[])
 
     engine.loadFromModule("Afq", "Main");
 
-//    QDate dateOfBirth = QDate::currentDate();
+QDate dateOfBirth = QDate::currentDate();
     std::optional<int> i;
 
     // i = Person::addPerson("Hussien", "Mohammed", "Nassif", "Jassim", 'M', dateOfBirth,
@@ -40,6 +41,10 @@ int main(int argc, char *argv[])
         for (int i = 0; i < schools.length(); i++) {
             qDebug() << "ID:" << schools[i].school_id << "Name:" << schools[i].name;
         }
+
+
+        qDebug()<<AcademicYearDAL::createAcademicYear("2003-2001",dateOfBirth, dateOfBirth, true);
+
 
     // i = Person::addPerson("Haider", "Bassem", "Nassif", "Jassim", 'M', dateOfBirth,
     //                       "Wasdgit", "0770909d97dg32", "0783dg363d9809",

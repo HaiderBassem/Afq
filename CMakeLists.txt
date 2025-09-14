@@ -11,10 +11,10 @@ qt_standard_project_setup(REQUIRES 6.8)
 
 qt_add_executable(AfqApp
     main.cpp
-    data/personDAL.h data/personDAL.cpp
-    data/studentsDAL.h data/studentsDAL.cpp
-    data/schoolDAL.h data/schoolDAL.cpp
-    data/dataModels.h
+    data/PersonDAL.h data/PersonDAL.cpp
+
+    data/SchoolDAL.h data/SchoolDAL.cpp
+    data/DataModels.h
     data/DatabaseManager/connectionPool.h data/DatabaseManager/connectionPool.cpp
     data/DatabaseManager/connectionWrapper.h data/DatabaseManager/connectionWrapper.cpp
     data/DatabaseManager/databaseManager.h data/DatabaseManager/databaseManager.cpp
@@ -25,6 +25,9 @@ qt_add_qml_module(AfqApp
     VERSION 1.0
     QML_FILES
         Main.qml
+        SOURCES data/AcademicYearDAL.h data/AcademicYearDAL.cpp
+        SOURCES data/TermsDAL.h data/TermsDAL.cpp
+        SOURCES data/ClassDAL.h data/ClassDAL.cpp
 )
 
 target_link_libraries(AfqApp

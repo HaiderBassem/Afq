@@ -5,7 +5,7 @@
 #include <QString>
 #include <QVector>
 #include <QPair>
-#include "dataModels.h"
+#include "DataModels.h"
 
 namespace DataAccess {
 
@@ -41,9 +41,9 @@ public:
 
     // Statistics and reporting
 
-    static int getActiveStudentsCount(int schoolID);
-    static int getActiveTeacherCount(int schoolID);
-    static int getClassesCount(int schoolID, int year);
+    static std::optional<int> getActiveStudentsCount(int schoolID);
+    static std::optional<int>  getActiveTeacherCount(int schoolID);
+    static std::optional<int>  getClassesCount(int schoolID, int year);
 
 
 

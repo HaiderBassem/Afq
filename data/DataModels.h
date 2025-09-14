@@ -43,7 +43,6 @@ struct AcademicYear
     QDate start_date;
     QDate end_date;
     bool is_active = false;
-    QDateTime created_at;
 };
 
 struct Term

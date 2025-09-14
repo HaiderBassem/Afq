@@ -1,4 +1,4 @@
-#include "personDAL.h"
+#include "PersonDAL.h"
 #include "DatabaseManager/databaseManager.h"
 #include "DatabaseManager/connectionWrapper.h"
 #include <QSqlQuery>
@@ -50,7 +50,7 @@ std::optional<int> Person::addPerson(
         return query.value(0).toInt();
     }
 
-    qWarning() << "addPerson error:" << query.lastError().text();
+    qWarning() << "ADD PERSON  ERROR:" << query.lastError().text();
     return std::nullopt;
 }
 
@@ -94,7 +94,7 @@ bool Person::updatePerson(
     query.bindValue(":id", id);
 
     if (!query.exec()) {
-        qWarning() << "updatePerson error:" << query.lastError().text();
+        qWarning() << "UPDATE PERSON ERROR:" << query.lastError().text();
         return false;
     }
     return query.numRowsAffected() > 0;
@@ -109,7 +109,7 @@ bool Person::deletePerson(int id) {
     query.bindValue(":id", id);
 
     if (!query.exec()) {
-        qWarning() << "deletePerson error:" << query.lastError().text();
+        qWarning() << "DELETE PERSON ERROR:" << query.lastError().text();
         return false;
     }
     return query.numRowsAffected() > 0;
@@ -156,7 +156,7 @@ bool Person::getPersonById(
         return true;
     }
 
-    qWarning() << "getPersonById error:" << query.lastError().text();
+    qWarning() << "GET PERSON BY ID ERROR:" << query.lastError().text();
     return false;
 }
 
@@ -167,13 +167,12 @@ QVector<DataModel::Person> Person::getAllPeople() {
 
     QSqlQuery query(db);
     if (!query.exec(R"(
-        SELECT p.person_id, p.first_name, p.second_name, p.third_name, p.fourth_name,
-               p.gender, p.date_of_birth, p.address, p.phone_one, p.phone_two,
-               p.email, p.image_path, e.role, e.status
+        SELECT p.person_id, p.first_name, p.second_name, p.third_name,
+               p.gender, p.date_of_birth, e.role, e.status
         FROM people p
         LEFT JOIN enrollment e ON p.person_id = e.person_id
     )")) {
-        qWarning() << "getAllPeople error:" << query.lastError().text();
+        qWarning() << "GET ALL PEOPLE ERROR:" << query.lastError().text();
         return people;
     }
 
@@ -183,14 +182,13 @@ QVector<DataModel::Person> Person::getAllPeople() {
         person.first_name  = query.value("first_name").toString();
         person.second_name = query.value("second_name").toString();
         person.third_name  = query.value("third_name").toString();
-        person.fourth_name = query.value("fourth_name").toString();
         person.gender      = query.value("gender").toString().isEmpty() ? '\0' : query.value("gender").toString().at(0).toLatin1();
         person.date_of_birth = QDate::fromString(query.value("date_of_birth").toString(), "yyyy-MM-dd");
-        person.address     = query.value("address").toString();
-        person.phone_one   = query.value("phone_one").toString();
-        person.phone_two   = query.value("phone_two").toString();
-        person.email       = query.value("email").toString();
-        person.image_path  = query.value("image_path").toString();
+        // person.address     = query.value("address").toString();
+        //person.phone_one   = query.value("phone_one").toString();
+        //person.phone_two   = query.value("phone_two").toString();
+        //person.email       = query.value("email").toString();
+        //person.image_path  = query.value("image_path").toString();
         person.role        = query.value("role").toString();
         person.status      = query.value("status").toString();
         people.append(person);
@@ -225,7 +223,7 @@ QVector<DataModel::Person> Person::getPersonByName(
     query.bindValue(":foname", fourthName);
 
     if (!query.exec()) {
-        qWarning() << "getPersonByName error:" << query.lastError().text();
+        qWarning() << "GET PERSON BY NAME ERROR:" << query.lastError().text();
         return people;
     }
 
@@ -237,7 +235,7 @@ QVector<DataModel::Person> Person::getPersonByName(
         person.third_name  = query.value("third_name").toString();
         person.fourth_name = query.value("fourth_name").toString();
         person.gender      = query.value("gender").toString().isEmpty() ? '\0' : query.value("gender").toString().at(0).toLatin1();
-        person.date_of_birth = QDate::fromString(query.value("date_of_birth").toString(), "yyyy-MM-dd");
+        person.date_of_birth = query.value("date_of_birth").toDate();
         person.address     = query.value("address").toString();
         person.phone_one   = query.value("phone_one").toString();
         person.phone_two   = query.value("phone_two").toString();
@@ -261,7 +259,7 @@ bool Person::isPersonExist(int id) {
         return true;
     }
 
-    qWarning() << "isPersonExist error:" << query.lastError().text();
+    qWarning() << "IS PERSON EXIST ERROR:" << query.lastError().text();
     return false;
 }
 

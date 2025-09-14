@@ -1,9 +1,9 @@
-#include "schoolDAL.h"
+#include "SchoolDAL.h"
 #include"DatabaseManager/databaseManager.h"
 #include<QSqlQuery>
 #include<QSqlError>
 
-#include"dataModels.h"
+#include"DataModels.h"
 
 
 
@@ -75,18 +75,22 @@ std::optional<DataModel::School> DataAccess::SchoolDAL::getSchoolById(const int 
     query.prepare("SELECT * FROM schools WHERE school_id = :id");
     query.bindValue(":id", id);
 
-    if(query.exec() && query.next())
-    {
-        DataModel::School school;
-        school.school_id = query.value("school_id").toInt();
-        school.name      = query.value("name").toString();
-        return school;
+    if(!query.exec())
+        {
+        qWarning() << "GET SCHOOL BY ID EXECUTION ERROR:" << query.lastError().text();
+        return std::nullopt;
     }
-        //TODO: logging
-    qWarning() << "GET SCHOOL BY ID ERROR:" << query.lastError().text();
-    return std::nullopt;
-}
 
+    if(!query.next())
+    {
+        return std::nullopt;
+    }
+
+    DataModel::School school;
+    school.school_id = query.value("school_id").toInt();
+    school.name = query.value("name").toString();
+    return school;
+}
 QVector<DataModel::School> DataAccess::SchoolDAL::getSchoolByName(const QString &name)
 {
     auto connWrapper = DatabaseManager::instance().getConnection();
@@ -260,27 +264,102 @@ QVector<DataModel::School> DataAccess::SchoolDAL::searchSchoolsByPartialName(con
 
 bool DataAccess::SchoolDAL::deleteMultipleSchools(const QVector<int> &ids)
 {
-    if(ids.isEmpty()) return false;
+    if(ids.isEmpty()) return true;
 
     auto connWrapper = DatabaseManager::instance().getConnection();
     QSqlDatabase db = connWrapper->database();
-    QSqlQuery query(db);
-    db.transaction();
-    for (int id : ids)
-    {
-        query.prepare("DELETE FROM schools WHERE school_id = :id");
-        query.bindValue(":id", id);
-        if(!query.exec())
-        {
-            qWarning()<<"DELETE MULTIPLE SCHOOLS ERROR:"<<query.lastError().text();
-            db.rollback(); // back
-            return false;
-        }
+
+    QString placeholders;
+    for(int i = 0; i < ids.size(); ++i) {
+        placeholders += (i > 0) ? ",?" : "?";
     }
 
-    db.commit();
-    return true;
+    QSqlQuery query(db);
+    query.prepare(QString("DELETE FROM schools WHERE school_id IN (%1)").arg(placeholders));
+
+    for(int id : ids) {
+        query.addBindValue(id);
+    }
+
+    if(!query.exec()) {
+        qWarning() << "DELETE MULTIPLE SCHOOLS ERROR:" << query.lastError().text();
+        return false;
+    }
+
+    return query.numRowsAffected() > 0;
 }
+
+std::optional<int> DataAccess::SchoolDAL::getActiveStudentsCount(int schoolID)
+{
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+
+    QSqlQuery query(db);
+
+    query.prepare("SELECT COUNT(*) FROM enrollment WHERE school_id = :schoolID AND role ='Student' AND status ='Active' ");
+    query.bindValue(":schoolID",schoolID);
+
+    if(!query.exec())
+    {
+        qWarning()<<"GET ACTIVE SYUDENTS COUNT ERROR:"<<query.lastError().text();
+        return std::nullopt;
+    }
+    if(query.next())
+    {
+        return query.value(0).toInt();
+    }
+
+    return 0;
+}
+
+std::optional<int>  DataAccess::SchoolDAL::getActiveTeacherCount(int schoolID)
+{
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+
+    QSqlQuery query(db);
+    query.prepare("SELECT COUNT(*) FROM enrollment WHERE school_id = :schoolID AND role = 'Teacher' And status = 'Active' ");
+    query.bindValue(":schoolID", schoolID);
+
+    if(!query.exec())
+    {
+        qWarning()<<"GET ACTIVE TEACHERS COUNT ERROR:"<<query.lastError().text();
+        return std::nullopt;
+    }
+
+    if(query.next())
+        return query.value(0).toInt();
+
+    return 0;
+}
+
+std::optional<int> DataAccess::SchoolDAL::getClassesCount(int schoolID, int year)
+{
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+
+    QSqlQuery query(db);
+    query.prepare(R"(SELECT COUNT(*)
+                    FROM classes WHERE school_id = :schoolID
+                    AND year = :year )");
+
+    query.bindValue(":schooID", schoolID);
+    query.bindValue(":year", year);
+
+    if(!query.exec())
+    {
+        //TODO: logging
+        qWarning()<< "GET CLASSES COUNT ERROR:"<<query.lastError().text();
+        return std::nullopt;
+    }
+
+    if(query.next())
+        return query.value(0).toInt();
+    return 0;
+}
+
+
+
 
 
 

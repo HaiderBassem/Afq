@@ -1,5 +1,5 @@
-// #ifndef STUDENTSDAL_H
-// #define STUDENTSDAL_H
+#ifndef STUDENTSDAL_H
+#define STUDENTSDAL_H
 // #include<optional>
 // #include<string>
 // #include<pqxx/pqxx>
@@ -95,4 +95,4 @@
 
 // };
 // }
-// #endif // STUDENTSDAL_H
+#endif // STUDENTSDAL_H
