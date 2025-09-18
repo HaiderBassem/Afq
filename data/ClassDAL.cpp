@@ -46,10 +46,10 @@ std::optional<DataModel::Class> DataAccess::ClassDAL::getClassById(int classId)
     {
         DataModel::Class cls;
         cls.class_id = query.value("class_id").toInt();
-        cls.year = query.value("school_id").toInt();
+        cls.year_id = query.value("school_id").toInt();
         cls.name = query.value("name").toString();
         cls.section = query.value("section").toString();
-        cls.year = query.value("year").toInt();
+        cls.year_id = query.value("year").toInt();
         return cls;
     }
     return std::nullopt;
@@ -113,10 +113,10 @@ QVector<DataModel::Class> DataAccess::ClassDAL::getClassesBySchool(int schoolId)
     {
         DataModel::Class cls;
         cls.class_id = query.value("class_id").toInt();
-        cls.year = query.value("school_id").toInt();
+        //cls.school_id = query.value("school_id").toInt();
         cls.name = query.value("name").toString();
         cls.section = query.value("section").toString();
-        cls.year = query.value("year").toInt();
+        cls.year_id = query.value("year").toInt();
         Classes.append(cls);
     }
 
@@ -144,10 +144,10 @@ QVector<DataModel::Class> DataAccess::ClassDAL::getClassesByYear(int year)
     {
         DataModel::Class cls;
         cls.class_id = query.value("class_id").toInt();
-        cls.year = query.value("school_id").toInt();
+        cls.school_id = query.value("school_id").toInt();
         cls.name = query.value("name").toString();
         cls.section = query.value("section").toString();
-        cls.year = query.value("year").toInt();
+        cls.year_id = query.value("year").toInt();
         Classes.append(cls);
     }
 
@@ -176,10 +176,10 @@ QVector<DataModel::Class> DataAccess::ClassDAL::searchClasses(const QString &sea
     {
         DataModel::Class cls;
         cls.class_id = query.value("class_id").toInt();
-        cls.year = query.value("school_id").toInt();
+        cls.school_id = query.value("school_id").toInt();
         cls.name = query.value("name").toString();
         cls.section = query.value("section").toString();
-        cls.year = query.value("year").toInt();
+        cls.year_id = query.value("year").toInt();
         Classes.append(cls);
     }
 
@@ -212,10 +212,10 @@ QVector<DataModel::Class> DataAccess::ClassDAL::getAllClasses(int limit, int off
     {
         DataModel::Class cls;
         cls.class_id = query.value("class_id").toInt();
-        cls.year = query.value("school_id").toInt();
+        cls.school_id = query.value("school_id").toInt();
         cls.name = query.value("name").toString();
         cls.section = query.value("section").toString();
-        cls.year = query.value("year").toInt();
+        cls.year_id = query.value("year").toInt();
         Classes.append(cls);
     }
 
@@ -330,7 +330,7 @@ QVector<DataModel::ClassSummary> DataAccess::ClassDAL::getclassSummary(int class
         cls.section = query.value("section").toString();
         cls.student_count = query.value("student_count").toInt();
         cls.subject_count = query.value("subject_count").toInt();
-        cls.year = query.value("year").toInt();
+        cls.year_id = query.value("year").toInt();
         cls.class_average = query.value("class_average").toDouble();
         cls.attendance_rate = query.value("attendance_rate").toDouble();
         cls.main_teacher = query.value("main_teacher").toString();

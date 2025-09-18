@@ -189,8 +189,8 @@ QVector<DataModel::Person> Person::getAllPeople() {
         //person.phone_two   = query.value("phone_two").toString();
         //person.email       = query.value("email").toString();
         //person.image_path  = query.value("image_path").toString();
-        person.role        = query.value("role").toString();
-        person.status      = query.value("status").toString();
+        person.role        = DataModel::stringToRole(query.value("role").toString());
+        person.status      = DataModel::stringToStatus(query.value("status").toString());
         people.append(person);
     }
 

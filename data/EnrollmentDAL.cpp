@@ -53,10 +53,10 @@ std::optional<DataModel::Enrollment> DataAccess::EnrollmentDAL::getEnrollment(in
         e.enrollment_id = query.value("enrollment_id").toInt();
         e.person_id = query.value("person_id").toInt();
         e.school_id = query.value("school_id").toInt();
-        e.role = query.value("role").toString();
+        e.role = DataModel::stringToRole(query.value("role").toString());
         e.start_date = query.value("start_date").toDate();
         e.end_date = query.value("end_date").toDate();
-        e.status = query.value("status").toString();
+        e.status = DataModel::stringToStatus(query.value("status").toString());
         return e;
     }
 
@@ -136,10 +136,10 @@ QVector<DataModel::Enrollment> DataAccess::EnrollmentDAL::getEnrollmentByPersonI
         e.enrollment_id = query.value("enrollment_id").toInt();
         e.person_id = query.value("person_id").toInt();
         e.school_id = query.value("school_id").toInt();
-        e.role = query.value("role").toString();
+        e.role = DataModel::stringToRole( query.value("role").toString());
         e.start_date = query.value("start_date").toDate();
         e.end_date = query.value("end_date").toDate();
-        e.status = query.value("status").toString();
+        e.status = DataModel::stringToStatus( query.value("status").toString());
 
         enrollments.append(e);
     }
@@ -178,10 +178,10 @@ QVector<DataModel::Enrollment> DataAccess::EnrollmentDAL::getEnrollmentBySchoolI
         e.enrollment_id = query.value("enrollment_id").toInt();
         e.person_id = query.value("person_id").toInt();
         e.school_id = query.value("school_id").toInt();
-        e.role = query.value("role").toString();
+        e.role = DataModel::stringToRole( query.value("role").toString());
         e.start_date = query.value("start_date").toDate();
         e.end_date = query.value("end_date").toDate();
-        e.status = query.value("status").toString();
+        e.status = DataModel::stringToStatus( query.value("status").toString());
 
         enrollments.append(e);
     }
@@ -219,10 +219,10 @@ QVector<DataModel::Enrollment> DataAccess::EnrollmentDAL::getActiveEnrollment(in
         e.enrollment_id = query.value("enrollment_id").toInt();
         e.person_id = query.value("person_id").toInt();
         e.school_id = query.value("school_id").toInt();
-        e.role = query.value("role").toString();
+        e.role = DataModel::stringToRole( query.value("role").toString());
         e.start_date = query.value("start_date").toDate();
         e.end_date = query.value("end_date").toDate();
-        e.status = query.value("status").toString();
+        e.status = DataModel::stringToStatus( query.value("status").toString());
 
         enrollments.append(e);
     }
@@ -255,10 +255,10 @@ std::optional<QVector<DataModel::Enrollment> > DataAccess::EnrollmentDAL::getPer
         e.enrollment_id = query.value("enrollment_id").toInt();
         e.person_id     = query.value("person_id").toInt();
         e.school_id     = query.value("school_id").toInt();
-        e.role          = query.value("role").toString();
+        e.role          = DataModel::stringToRole( query.value("role").toString());
         e.start_date    = query.value("start_date").toDate();
         e.end_date      = query.value("end_date").toDate();
-        e.status        = query.value("status").toString();
+        e.status        = DataModel::stringToStatus( query.value("status").toString());
         enrollments.append(e);
     }
     if(enrollments.isEmpty())
@@ -293,10 +293,10 @@ QVector<DataModel::Enrollment> DataAccess::EnrollmentDAL::getAllEnrollment(int l
         e.enrollment_id = query.value("enrollment_id").toInt();
         e.person_id = query.value("person_id").toInt();
         e.school_id = query.value("school_id").toInt();
-        e.role = query.value("role").toString();
+        e.role = DataModel::stringToRole( query.value("role").toString());
         e.start_date = query.value("start_date").toDate();
         e.end_date = query.value("end_date").toDate();
-        e.status = query.value("status").toString();
+        e.status = DataModel::stringToStatus( query.value("status").toString());
 
         enrollments.append(e);
     }
@@ -515,6 +515,112 @@ bool DataAccess::EnrollmentDAL::transferPersonToSchool(int personId, int fromSch
     return true;
 
 }
+
+QVector<DataModel::Enrollment> DataAccess::EnrollmentDAL::getEnrollmentHistory(int personId)
+{
+    QVector<DataModel::Enrollment> enrollments;
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+                    SELECT e.enrollment_id, e.person_id, e.school_id, e.role, e.start_date, e.end_date, e.status
+                        n.name AS school_name
+                    FROM enrollment e
+                    JOIN schools s ON e.school_id = s.school_id
+                    WHERE e.person_id = :personId
+                    ORDER BY e.start_date ASC
+)");
+
+
+query.bindValue(":personId", personId);
+
+    if(!query.exec())
+    {
+    qWarning() << "GET ENROLLMENT HISTORY ERROR:" << query.lastError().text();
+        return enrollments;
+    }
+    while(query.next())
+    {
+        DataModel::Enrollment e;
+
+        e.enrollment_id = query.value("enrollment_id").toInt();
+        e.person_id     = query.value("person_id").toInt();
+        e.school_id     = query.value("school_id").toInt();
+        e.role          = DataModel::stringToRole( query.value("role").toString());
+        e.start_date    = query.value("start_date").toDate();
+        e.end_date      = query.value("end_date").toDate();
+        e.status        = DataModel::stringToStatus(query.value("status").toString());
+        e.school_name   = query.value("school_name").toString();
+        enrollments.append(e);
+    }
+    return enrollments;
+}
+
+QVector<DataModel::Enrollment> DataAccess::EnrollmentDAL::getRecentEnrollments(int schoolId, int days)
+{
+    QVector<DataModel::Enrollment> enrollments;
+
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    QSqlQuery query(db);
+
+    query.prepare(R"(
+                SELECT enrollment_id, person_id, school_id, role, start_date, end_date, stauts
+                FORM enrollment
+                WHERE school_id = :schoolId
+                AND start_date >= (CURRENT_DATE - (:days || 'days')::INTERVAL)
+                ORDER BY start_date DESC
+    )");
+
+    query.bindValue(":schoolId",schoolId);
+    query.bindValue(":days", days);
+
+    if(!query.exec())
+    {
+        qWarning() << "GET RECENT ENROLLMENT ERROR:" << query.lastError().text();
+        return enrollments;
+    }
+
+    while(query.next())
+    {
+
+            DataModel::Enrollment e;
+
+            e.enrollment_id = query.value("enrollment_id").toInt();
+            e.person_id     = query.value("person_id").toInt();
+            e.school_id     = query.value("school_id").toInt();
+            e.role          = DataModel::stringToRole(query.value("role").toString());
+            e.start_date    = query.value("start_date").toDate();
+            e.end_date      = query.value("end_date").toDate();
+            e.status        = DataModel::stringToStatus(query.value("status").toString());
+            enrollments.append(e);
+
+    }
+
+    return enrollments;
+}
+
+int DataAccess::EnrollmentDAL::getTotalCount()
+{
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    QSqlQuery query(db);
+
+    query.prepare("SELECT COUNT(*) FROM enrollment");
+
+    if(!query.exec())
+    {
+        qWarning() << "GET TOTAL ENROLLMENT COUNT ERROR:" << query.lastError().text();
+        return 0;
+    }
+    if(query.next())
+        return query.value(0).toInt();
+
+    return 0;
+}
+
+
 
 
 
