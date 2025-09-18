@@ -36,8 +36,8 @@ public:
 
     static bool activeTerm(int termId);
     static bool deactivateTerm(int termId);
-    static bool setCurrentTerm(int termId);
-    static bool canDeleteTerm(int termId);
+    // static bool setCurrentTerm(int termId);
+
 };
 }
 #endif // TERMSDAL_H

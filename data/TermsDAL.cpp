@@ -350,6 +350,51 @@ int DataAccess::TermsDAL::getRemainingDays(int termId)
     return today.daysTo(end) + 1;
 }
 
+bool DataAccess::TermsDAL::activeTerm(int termId)
+{
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    QSqlQuery query(db);
+
+    query.prepare("UPDATE terms SET is_active = true WHERE term_id = :termId");
+
+    query.bindValue(":termId",termId);
+
+    if(!query.exec())
+    {
+            qWarning() << "ACTIVE TERM ERROR:" << query.lastError().text();
+        return false;
+    }
+
+    return query.numRowsAffected() > 0;
+}
+
+bool DataAccess::TermsDAL::deactivateTerm(int termId)
+{
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    QSqlQuery query(db);
+
+    query.prepare("UPDATE terms SET is_active = false WHERE term_id = :termId");
+
+    query.bindValue(":termId",termId);
+
+    if(!query.exec())
+    {
+        qWarning() << "DEACTIVE TERM ERROR:" << query.lastError().text();
+        return false;
+    }
+
+    return query.numRowsAffected() > 0;
+}
+
+
+
+// bool DataAccess::TermsDAL::setCurrentTerm(int termId)
+// {
+
+// }
+
 
 
 

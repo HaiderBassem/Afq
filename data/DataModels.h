@@ -197,6 +197,51 @@ struct SystemLog
     QString ip_address;
 };
 
+
+
+
+
+// COMPLEX DATA MODELS FOR REPORTS
+
+
+struct StudentSummary
+{
+    int person_id;
+    QString full_name;
+    QString class_name;
+    QString section;
+    double overall_average = 0.0;
+    double attendance_rate = 0.0;
+    int total_subjects = 0;
+    QString status;
+};
+
+
+
+struct ClassSummary {
+    int class_id;
+    QString name;
+    QString section;
+    int student_count = 0;
+    int subject_count = 0;
+    int year = 0;
+    double class_average = 0.0;
+    double attendance_rate = 0.0;
+    QString main_teacher;
+};
+
+
+struct TeacherSummary
+{
+    int person_id;
+    QString full_name;
+    int total_classes = 0;
+    int total_subjects = 0;
+    int total_students = 0;
+    double average_class_performance = 0.0;
+    int weekly_hours = 0; // بالساعات
+};
+
 }
 
 #endif // DATAMODELS_H

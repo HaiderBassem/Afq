@@ -28,6 +28,8 @@ qt_add_qml_module(AfqApp
         SOURCES data/AcademicYearDAL.h data/AcademicYearDAL.cpp
         SOURCES data/TermsDAL.h data/TermsDAL.cpp
         SOURCES data/ClassDAL.h data/ClassDAL.cpp
+        SOURCES data/ClassDAL.h data/ClassDAL.cpp
+        SOURCES data/EnrollmentDAL.h data/EnrollmentDAL.cpp
 )
 
 target_link_libraries(AfqApp
