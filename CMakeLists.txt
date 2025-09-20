@@ -13,7 +13,7 @@ qt_standard_project_setup(REQUIRES 6.8)
 qt_add_executable(AfqApp
     main.cpp
     DataModel.h
-    Logger.h Logger.cpp
+    data/Logger.h data/Logger.cpp
 
 
 
@@ -29,6 +29,7 @@ qt_add_qml_module(AfqApp
     VERSION 1.0
     QML_FILES
         Main.qml
+        SOURCES data/LoggerWorker.h data/LoggerWorker.cpp
 )
 
 target_link_libraries(AfqApp

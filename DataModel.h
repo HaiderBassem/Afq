@@ -229,7 +229,7 @@ inline QString genderToString(Gender g)
     }
 }
 
-inline Gender charToGender(char c)
+inline Gender charToGender(QChar c)
 {
     if (c == 'M' || c == 'm') return Gender::Male;
     if (c == 'F' || c == 'f') return Gender::Female;
