@@ -19,9 +19,6 @@ int main(int argc, char *argv[])
 
     engine.loadFromModule("Afq", "Main");
 
-
-
-
     return app.exec();
 }
 

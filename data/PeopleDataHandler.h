@@ -9,7 +9,8 @@
 #include <QJsonArray>
 #include <QPair>
 
-namespace DataAccess {
+namespace DataAccess
+{
 
 class PeopleDataHandler
 {
@@ -23,16 +24,16 @@ public:
     static bool deletePerson(int personId);
 
     // Search Operations
-    static QVector<DataModel::Person> getPeopleByName(const QString& fname,
-                                                      const QString& sname = "",
-                                                      const QString& tname = "",
-                                                      const QString& ftname = "");
+    // static std::optional<QVector<DataModel::Person>> getPeopleByName(const QString& fname,
+    //                                                   const QString& sname = "",
+    //                                                   const QString& tname = "",
+    //                                                   const QString& ftname = "");
 
-    static QVector<DataModel::Person> getPeopleByGender(DataModel::Gender gender);
-    static QVector<DataModel::Person> getPeopleByBirthdateRange(const QDate& startDate,
-                                                                const QDate& endDate);
-    static QVector<DataModel::Person> getPeopleByFullName(const QString& fullName);
-    static QVector<DataModel::Person> getPeopleByIds(const QList<int>& personIds);
+    // static QVector<DataModel::Person> getPeopleByGender(DataModel::Gender gender);
+    // static QVector<DataModel::Person> getPeopleByBirthdateRange(const QDate& startDate,
+    //                                                             const QDate& endDate);
+    // static QVector<DataModel::Person> getPeopleByFullName(const QString& fullName);
+    // static QVector<DataModel::Person> getPeopleByIds(const QList<int>& personIds);
 
     // Statistics
     static int getPeopleCount();
@@ -40,13 +41,14 @@ public:
 
     // Validation Checks
     static bool isPersonExist(int personId);
+    static bool isPersonExist(const DataModel::Person& person);
     static bool isNameExist(const QString& fname, const QString& sname,
                             const QString& tname, const QString& ftname);
-    static bool isDuplicatePerson(const DataModel::Person& person);
+     // static bool isDuplicatePerson(const DataModel::Person& person);
 
     // Import/Export
-    static bool importFromJson(const QJsonArray& jsonArray);
-    static QJsonArray exportToJson(const QList<int>& personIds = QList<int>());
+    // static bool importFromJson(const QJsonArray& jsonArray);
+    // static QJsonArray exportToJson(const QList<int>& personIds = QList<int>());
 };
 
 } // namespace DataAccess

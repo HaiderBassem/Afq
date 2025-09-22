@@ -30,6 +30,7 @@ qt_add_qml_module(AfqApp
     QML_FILES
         Main.qml
         SOURCES data/LoggerWorker.h data/LoggerWorker.cpp
+        SOURCES data/AcademicYearDataHandler.h data/AcademicYearDataHandler.cpp
 )
 
 target_link_libraries(AfqApp

@@ -9,10 +9,10 @@ LoggerWorker::LoggerWorker(QObject *parent)
     , m_stopRequested(false)
 {
 
-    QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir().mkpath(logDir);
+    QString logDir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    QDir().mkpath(logDir); // make thhe file if not exist
 
-    QString logPath = logDir + "/application.log";
+    QString logPath = logDir + "/Afq.log"; // file name
     m_logFile.setFileName(logPath);
 
     if (!m_logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text))
