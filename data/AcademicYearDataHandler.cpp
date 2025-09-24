@@ -258,6 +258,21 @@ bool DataAccess::AcademicYearDataHandler::updateAcademicYear(const DataModel::Ac
         for(const auto& Pair : bindValues)
             query.bindValue(Pair.first, Pair.second);
 
+        if(!query.exec())
+        {
+            qCritical() << "\033[31m Failed to update academic year \033[0m" << query.lastError().text();
+            Logger::instance().error("Failed to update academic year: " + query.lastError().text());
+            db.rollback();
+            return false;
+        }
+
+        if(query.numRowsAffected() <= 0)
+        {
+            qWarning() << "\033[33m No academic year found with ID: \033[0m" << year.year_id;
+            Logger::instance().warning("No academic year found with ID: " + QString::number(year.year_id));
+            db.rollback();
+            return false;
+        }
 
 
         if(year.is_active)
@@ -265,8 +280,15 @@ bool DataAccess::AcademicYearDataHandler::updateAcademicYear(const DataModel::Ac
             QSqlQuery deactivateQuery(db);
             deactivateQuery.prepare("UPDATE academic_year SET is_active = false WHERE year_id != ?");
             deactivateQuery.addBindValue(year.year_id);
-            deactivateQuery.exec(); // go on even it stop
 
+
+            if(!deactivateQuery.exec())
+            {
+                qWarning() << "\033[33m Failed to deactivate other academic years \033[0m" << deactivateQuery.lastError().text();
+                Logger::instance().warning("Failed to deactivate other academic years: " + deactivateQuery.lastError().text());
+
+                // go on without stop, just log what happen
+            }
         }
 
         if(!db.commit())
@@ -277,9 +299,210 @@ bool DataAccess::AcademicYearDataHandler::updateAcademicYear(const DataModel::Ac
             return false;
         }
 
-        qDebug() <<"\033[32m Updated academic year ID: \033[0m" << QString::number(year.year_id);
+        qDebug() <<"\033[32m Successfully updated academic year ID: \033[0m" << QString::number(year.year_id);
         return true;
 }
+
+bool DataAccess::AcademicYearDataHandler::deleteAcademicYear(int yearId)
+{
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() <<"\033[31m Database connection is not open \033[0m " + db.lastError().text();
+        Logger::instance().error("Database connection is not open " + db.lastError().text());
+        return false;
+    }
+
+    if(!db.transaction())
+    {
+        qCritical() <<"\033[31m Cannot start transaction \033[0m"+ db.lastError().text();
+        Logger::instance().error("Cannot start transaction "+ db.lastError().text());
+        return false;
+    }
+
+
+    QSqlQuery query(db);
+    query.prepare("DELETE FROM academic_year WHEER year_id = ?")   ;
+    query.addBindValue(yearId);
+
+    if(!query.exec())
+    {
+        qCritical()  << "\033[31m Failed to delete academic year \033[0m "+ query.lastError().text();
+        Logger::instance().error("Failed to delete academic year " + query.lastError().text());
+        return false;
+    }
+
+    if(!db.commit())
+    {
+        qCritical() <<"\033[31m Failed to commit transaction \033[0m" << db.lastError().text();
+        Logger::instance().error("Failed to commit transaction " + db.lastError().text());
+        return false;
+    }
+
+    qDebug() << "\033[32m Deleted academic year successfully . \033[0m";
+    return true;
+}
+
+std::optional<DataModel::AcademicYear> DataAccess::AcademicYearDataHandler::getCurrentAcademicYear()
+{
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    QSqlQuery query(db);
+
+    query.setForwardOnly(true);
+    query.prepare("SELECT year_id, name, start_date, end_date, is_active, holidays_count FROM academic_year WHERE CURRENT_DATE >= start_date AND CURRENT_DATE <= end_date  LIMIT 1");
+
+
+
+    if(query.exec() && query.next())
+    {
+        DataModel::AcademicYear ay;
+
+        ay.year_id = query.value("year_id").toInt();
+        ay.name = query.value("name").toString();
+        ay.start_date = query.value("start_date").toDate();
+        ay.end_date = query.value("end_date").toDate();
+        ay.is_active = query.value("is_active").toBool();
+        ay.holidays_count = query.value("holidays_count").toInt();
+
+        return ay;
+    }
+
+    qWarning() << "\033[33m There are no result to return \033[0m";
+    return std::nullopt;
+}
+
+bool DataAccess::AcademicYearDataHandler::setAcademicYearActive(int yearId)
+{
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() <<"\033[31m Database connection is not open \033[0m " + db.lastError().text();
+        Logger::instance().error("Database connection is not open " + db.lastError().text());
+        return false;
+    }
+
+    if(!db.transaction())
+    {
+        qCritical() <<"\033[31m Cannot start transaction \033[0m"+ db.lastError().text();
+        Logger::instance().error("Cannot start transaction "+ db.lastError().text());
+        return false;
+    }
+
+
+
+    QSqlQuery query(db);
+    query.prepare("UPDATE academic_year SET is_active = true WHERE year_id = :id");
+
+    if(!query.exec())
+    {
+        qCritical() << "\033[33m Failed to activate academic year \033[0m " + query.lastError().text();
+        Logger::instance().error("Failed to activate academic year " +query.lastError().text());
+        db.rollback();
+        return false;
+    }
+
+
+
+
+    QSqlQuery deactivateQuery(db);
+    deactivateQuery.prepare("UPDATE academic_year SET is_active = false WHERE year_id != ?");
+    deactivateQuery.addBindValue(yearId);
+
+
+    if(!deactivateQuery.exec())
+    {
+        qWarning() << "\033[33m Failed to deactivate other academic years \033[0m" << deactivateQuery.lastError().text();
+        Logger::instance().warning("Failed to deactivate other academic years: " + deactivateQuery.lastError().text());
+
+        // go on without stop, just log what happen
+    }
+
+    if(!db.commit())
+    {
+        qCritical() <<"\033[31m Failed to commit transaction: \033[0m" + db.lastError().text();
+        Logger::instance().error("Failed to commit transaction: " + db.lastError().text());
+        db.rollback();
+        return false;
+    }
+
+    qDebug() <<"\033[32m Successfully activate  academic year ID: \033[0m" << QString::number(yearId);
+    return true;
+
+}
+
+bool DataAccess::AcademicYearDataHandler::isAcademicYearActive(int yearId)
+{
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
+    query.prepare(R"( SELECT is_active FROM academic_year WHERE year_id = :id LIMIT 1)");
+    query.bindValue(":id", yearId);
+
+    if(!query.exec())
+    {
+        qCritical() << "\033[33m Failed to check academic year is active \033[0m " + query.lastError().text();
+        Logger::instance().error("Failed to check academic year is active " +query.lastError().text());
+        return false;
+    }
+    if(query.next())
+        return query.value(0).toBool();
+
+    return false;
+}
+
+QVector<DataModel::AcademicYear> DataAccess::AcademicYearDataHandler::getAcademicYearByDateRange(const QDate &start, const QDate &end)
+{
+    auto connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
+    query.prepare("SELECT year_id, name, start_date, end_date, is_active, holidays_count FROM academic_year WHERE start_date AND end_date BETWEEN :start AND :end");
+
+    if(!query.exec())
+    {
+        qCritical() <<"\033[33m Failed to get acadmeic year in range " + query.lastError().text();
+        Logger::instance().error("Failed to get acadmeic year in range " + query.lastError().text());
+
+        return QVector<DataModel::AcademicYear>();
+    }
+    QVector<DataModel::AcademicYear> academicYears;
+    while(query.next())
+    {
+        DataModel::AcademicYear ay;
+        ay.year_id = query.value("year_id").toInt();
+        ay.name = query.value("name").toString();
+        ay.start_date = query.value("start_date").toDate();
+        ay.end_date = query.value("end_date").toDate();
+        ay.is_active = query.value("is_active").toBool();
+        ay.holidays_count = query.value("holidays_count").toInt();
+        academicYears.append(ay);
+    }
+    return academicYears;
+
+}
+
+// int DataAccess::AcademicYearDataHandler::getAcademicYearCount()
+// {
+//     auto connWrapper = DatabaseManager::instance().getConnection();
+//     QSqlDatabase db = connWrapper->database();
+
+//     QSqlQuery query(db);
+//     query.setForwardOnly(true);
+//     query.prepare("SELECT COUNT(year_id) FROM academic_year");
+
+// }
+
+
+
+
 
 
 
