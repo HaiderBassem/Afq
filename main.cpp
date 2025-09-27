@@ -20,13 +20,14 @@ int main(int argc, char *argv[])
 
     engine.loadFromModule("Afq", "Main");
     DataModel::AcademicYear year;
-    year.name = "2026/2025";
-    year.start_date = QDate::currentDate();
-    year.end_date = QDate(2026, 6, 1);
+    year.name = "2027/2026";
+    year.start_date = QDate(2026, 10, 1);
+    year.end_date = QDate(2027, 6, 1);
     year.is_active = true;
     year.holidays_count = 30;
 
-    DataAccess::AcademicYearDataHandler::addAcademicYear(year);
+    DataAccess::AcademicYearDataHandler::getAcademicYearDuration(5);
+    // qDebug() <<DataAccess::AcademicYearDataHandler::getDaysElapsedInAcademicYear(5) << "\n";
 
     return app.exec();
 }
