@@ -472,6 +472,15 @@ public:
     QString work_phone;
     QString education_level;
 
+    //for people info
+    QString first_name;
+    QString second_name;
+    QString third_name;
+    QString fourth_name;
+    QString full_name = first_name +" "  + second_name + " " + third_name + " " + fourth_name;
+    QChar gender;
+    QDate date_of_birth;
+
     // Additional fields for joins
     QString guardian_name;
 
