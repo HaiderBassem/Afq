@@ -1,6 +1,7 @@
 #include "GuardianDataHandler.h"
 #include"DatabaseManager/databaseManager.h"
 #include"Logger.h"
+#include"data/PeopleDataHandler.h"
 
 
 #include<QSqlQuery>
@@ -300,7 +301,166 @@ QVector<DataModel::Guardian> DataAccess::GuardianDataHandler::getAllGuardiansByI
 
      return guardians;
 }
+bool DataAccess::GuardianDataHandler::addStudentGuardianRelationship(int studentPersonId, int guardianId, const QString &relationship, bool isPrimary)
+{
 
+    if(!PeopleDataHandler::isPersonExist(studentPersonId) || !isGuardianExists(guardianId))
+        return false;
+
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open: " + db.lastError().text());
+        return false;
+    }
+
+    if(!db.transaction())
+    {
+        qCritical() << "\033[31m Failed to start transaction.\033[0m" << db.lastError().text();
+        Logger::instance().error("Failed to start transaction: " + db.lastError().text());
+        return false;
+    }
+
+    QSqlQuery checkRelationship(db);
+    checkRelationship.prepare("SELECT student_guardian_id FROM student_guardians WHERE student_person_id = ? AND guardian_id = ?");
+    checkRelationship.addBindValue(studentPersonId);
+    checkRelationship.addBindValue(guardianId);
+
+    if(checkRelationship.exec() && checkRelationship.next())
+    {
+        qCritical() << "\033[31m Relationship already exists between student ID: \033[0m" << studentPersonId << " and guardian ID: " << guardianId;
+        Logger::instance().error("Relationship already exists between student and guardian");
+        db.rollback();
+        return false;
+    }
+
+    if(isPrimary)
+    {
+        QSqlQuery updatePrimaryQuery(db);
+        updatePrimaryQuery.prepare("UPDATE student_guardians SET is_primary = false WHERE student_person_id = ?");
+        updatePrimaryQuery.addBindValue(studentPersonId);
+
+        if(!updatePrimaryQuery.exec())
+        {
+            qWarning() << "\033[33m Failed to update existing primary relationship for student ID: \033[0m" << studentPersonId << " " << updatePrimaryQuery.lastError().text();
+            Logger::instance().warning("Failed to update existing primary relationship for student " + updatePrimaryQuery.lastError().text());
+            // do not return false, it's not dangerous case
+        }
+    }
+
+
+    QSqlQuery insertQuery(db);
+    insertQuery.prepare(R"(
+        INSERT INTO student_guardians (student_person_id, guardian_id, relationship, is_primary)
+        VALUES (?, ?, ?, ?)
+        RETURNING student_guardian_id
+    )");
+
+    insertQuery.addBindValue(studentPersonId);
+    insertQuery.addBindValue(guardianId);
+    insertQuery.addBindValue(relationship.trimmed());
+    insertQuery.addBindValue(isPrimary);
+
+    if(!insertQuery.exec() || !insertQuery.next())
+    {
+        qCritical() << "\033[31m Failed to add student-guardian relationship: \033[0m" << insertQuery.lastError().text();
+        Logger::instance().error("Failed to add student-guardian relationship: " + insertQuery.lastError().text());
+        db.rollback();
+        return false;
+    }
+
+    int newRelationshipId = insertQuery.value("student_guardian_id").toInt();
+
+    if(!db.commit())
+    {
+        qCritical() << "\033[31m Failed to commit transaction.\033[0m" << db.lastError().text();
+        Logger::instance().error("Failed to commit transaction: " + db.lastError().text());
+        db.rollback();
+        return false;
+    }
+
+    qInfo() << "\033[32m Successfully added student-guardian relationship ID:\033[0m" << newRelationshipId
+            << "Student ID:" << studentPersonId
+            << "Guardian ID:" << guardianId
+            << "Relationship:" << relationship
+            << "Is Primary:" << (isPrimary ? "Yes" : "No");
+
+    return true;
+}
+
+bool DataAccess::GuardianDataHandler::removeStudentGuardianRelationship(int studentGuardianId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open: " + db.lastError().text());
+        return false;
+    }
+
+
+    if(!db.transaction())
+    {
+        qCritical() << "\033[31m Failed to start transaction.\033[0m" << db.lastError().text();
+        Logger::instance().error("Failed to start transaction: " + db.lastError().text());
+        return false;
+    }
+    // check the relationship is exist
+    QSqlQuery checkQuery(db);
+    checkQuery.prepare("SELECT 1 FROM student_guardians WHERE student_guardian_id = ? LIMIT 1 ");
+    checkQuery.addBindValue(studentGuardianId);
+
+    if(!checkQuery.exec() || !checkQuery.next())
+    {
+        qCritical() << "\033[31m Student-guardian relationship not found with ID:\033[0m" << studentGuardianId;
+        Logger::instance().error("Student-guardian relationship not found with ID: " + QString::number(studentGuardianId));
+        db.rollback();
+        return false;
+    }
+
+
+    //get the data before delete it // juut for logging
+
+
+    QSqlQuery infoQuery(db);
+    infoQuery.prepare(R"(
+                        SELECT sg.student_person_id
+
+)"
+
+
+}
+
+bool DataAccess::GuardianDataHandler::isGuardianExists(int guardianId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qWarning() << "\033[33m Database is not open\033[0m";
+        return false;
+    }
+
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
+
+    query.prepare("SELECT 1 FROM guardians WHERE guardian_id = ? LIMIT 1");
+    query.addBindValue(guardianId);
+
+    if(!query.exec())
+    {
+        qWarning() << "\033[33m Failed to check guardian existence:\033[0m" << query.lastError().text();
+        return false;
+    }
+
+    return query.next();
+}
 
 
 

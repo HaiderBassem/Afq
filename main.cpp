@@ -6,7 +6,7 @@
 #include<QString>
 
 #include"data/PeopleDataHandler.h"
-#include"data/AcademicYearDataHandler.h"
+#include"data/GuardianDataHandler.h"
 
 
 int main(int argc, char *argv[])
@@ -19,14 +19,14 @@ int main(int argc, char *argv[])
                      Qt::QueuedConnection);
 
     engine.loadFromModule("Afq", "Main");
-    DataModel::AcademicYear year;
-    year.name = "2027/2026";
-    year.start_date = QDate(2026, 10, 1);
-    year.end_date = QDate(2027, 6, 1);
-    year.is_active = true;
-    year.holidays_count = 30;
+    DataModel::Guardian g;
+    g.person_id = 1;
+    g.occupation = "Dr.";
+    g.work_phone = "07709099732";
+    g.education_level = "PhD";
 
-    DataAccess::AcademicYearDataHandler::getAcademicYearDuration(5);
+
+    DataAccess::GuardianDataHandler::isGuardianExists(2) ? qDebug() << "Hi" : qDebug() <<"bye";
     // qDebug() <<DataAccess::AcademicYearDataHandler::getDaysElapsedInAcademicYear(5) << "\n";
 
     return app.exec();

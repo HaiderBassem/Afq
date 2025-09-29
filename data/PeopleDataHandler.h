@@ -2,7 +2,6 @@
 #define PEOPLEDATAHANDLER_H
 
 #include "DataModel.h"
-#include"CRUDoperations.h"
 #include <optional>
 #include <QString>
 #include <QVector>

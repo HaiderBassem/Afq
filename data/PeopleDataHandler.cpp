@@ -414,48 +414,30 @@ QPair<int, int> DataAccess::PeopleDataHandler::getGenderCount()
 
 bool DataAccess::PeopleDataHandler::isPersonExist(int personId)
 {
-    if(personId <= 0)
-    {
-        qWarning() << "\033[33m Invalid person ID MUST BE POSITIVE: \033[0m " << personId;
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
 
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database is not open\033[0m";
+        Logger::instance().error("Database is not open" + db.lastError().text());
         return false;
     }
-
-
-    auto connWrapper = DatabaseManager::instance().getConnection();
-    QSqlDatabase db = connWrapper->database();
-
-    if (!db.isOpen())
-    {
-        qWarning() << "\033[31m Database connection is not open \033[0m";
-        Logger::instance().error("Database connection is not open");
-        return false;
-    }
-
 
     QSqlQuery query(db);
-    query.prepare(R"(
-                    SELECT 1 FROM people WHERE person_id = :id LIMIT 1
-    )");
+    query.setForwardOnly(true);
 
-    query.bindValue(":id", personId);
+    query.prepare("SELECT 1 FROM people WHERE person_id = ? LIMIT 1");
+    query.addBindValue(personId);
 
     if(!query.exec())
     {
-        qCritical() << "\033[31m Failed to check person existence \033[0m " <<query.lastError().text();
-        Logger::instance().error("Failed to check person existence " + query.lastError().text());
+        qCritical() << "\033[31m Failed to check person existence:\033[0m" << query.lastError().text();
+        Logger::instance().error("Failed to check person existence" + query.lastError().text());
         return false;
     }
 
-    if(query.next())
-    {
-        qDebug() <<"\033[32m Person with ID " + QString::number(personId);
-        return true;
-    }
-
-
-    qWarning() <<"\033[33m No result returned when checking person existence for ID: " + QString::number(personId);
-    return false;
+    return query.next();
 }
 
 
