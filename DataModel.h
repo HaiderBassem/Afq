@@ -480,7 +480,7 @@ public:
     QString full_name = first_name +" "  + second_name + " " + third_name + " " + fourth_name;
     QChar gender;
     QDate date_of_birth;
-
+    QString relationship;
     // Additional fields for joins
     QString guardian_name;
 
@@ -532,6 +532,9 @@ public:
     // Additional fields for joins
     QString student_name;
     QString guardian_name;
+
+    Guardian guardianInfo;
+
 
     bool isValid() const override
     {
