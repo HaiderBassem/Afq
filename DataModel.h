@@ -481,6 +481,18 @@ public:
     QChar gender;
     QDate date_of_birth;
     QString relationship;
+
+    // to search the guardian by student
+    QString studentFirstName;
+    QString studentSecondName;
+    QString studentThirdName;
+    QString studentFourthName;
+    QString studentFullName;
+
+    bool isPrimary;
+    QString className;
+
+
     // Additional fields for joins
     QString guardian_name;
 

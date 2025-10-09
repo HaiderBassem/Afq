@@ -5,6 +5,7 @@
 
 #include<QString>
 #include<QDate>
+#include<optional>
 
 namespace DataAccess {
 
@@ -31,17 +32,19 @@ public:
     static QVector<DataModel::Guardian> searchGuardianByPhoneNumber(const QString& phoneNumber);
     static QVector<DataModel::Guardian> searchGuardianByName(const QString& fname, const QString& sname = "", const QString& tname = "");
     static QVector<DataModel::Guardian> searchGuardianByOccupation(const QString& occupation);
-    static QVector<DataModel::Guardian> getGuardiansByEducationLevel(const QString& educationLevel);
-    static QVector<DataModel::Guardian> getGuardiansByStudentName(const QString& f_studentName, const QString& s_studentName = "", const QString& t_studentName = "", const QString& ft_studentName ="");
+    static QVector<DataModel::Guardian> searchGuardiansByEducationLevel(const QString& educationLevel);
+    static QVector<DataModel::Guardian> searchGuardiansByStudentName(const QString& f_studentName, const QString& s_studentName = "", const QString& t_studentName = "", const QString& ft_studentName ="");
 
     // statistics
-    static int getGuardianCount();
-    static QVector<DataModel::Guardian> getGuardiansWithMultipleStudents();
+    static std::optional<int> getGuardiansCount();
+   // static QVector<DataModel::Guardian> getGuardiansWithMultipleStudents();
 
 
     // checks
     static bool isGuardianExists(int guardianId);
     static bool isStudentGuardianRelationshipExists(int studentPersonId, int guardianId);
+    static bool hasStudentAnyGuardian(int studentPersonId);
+    static DataModel::Guardian getPrimaryGuardianInfo(int studentPersonId);
     static bool hasPrimaryGuardian(int studentPersonId);
 
 

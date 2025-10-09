@@ -779,33 +779,7 @@ bool DataAccess::GuardianDataHandler::setPrimaryGuardian(int studentPersonId, in
 
 
 
-bool DataAccess::GuardianDataHandler::isGuardianExists(int guardianId)
-{
-    const auto& connWrapper = DatabaseManager::instance().getConnection();
-    const QSqlDatabase& db = connWrapper->database();
 
-    if(!db.isOpen())
-    {
-        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
-        Logger::instance().error("Database connection is not open: " + db.lastError().text());
-        return false;
-    }
-
-
-    QSqlQuery query(db);
-    query.setForwardOnly(true);
-
-    query.prepare("SELECT 1 FROM guardians WHERE guardian_id = ? LIMIT 1");
-    query.addBindValue(guardianId);
-
-    if(!query.exec())
-    {
-        qWarning() << "\033[33m Failed to check guardian existence:\033[0m" << query.lastError().text();
-        return false;
-    }
-
-    return query.next();
-}
 
 
 QVector<DataModel::StudentGuardian> DataAccess::GuardianDataHandler::getStudentGuardians(int studentPersonId)
@@ -1185,13 +1159,14 @@ QVector<DataModel::Guardian> DataAccess::GuardianDataHandler::searchGuardianByOc
     QString whereClause;
     QVector<QString> bindValues;
 
-    auto addCondition = [&] (const QString& field, const QString& value)
+    auto addCondition = [&](const QString& field, const QString& value)
     {
         if(!value.isEmpty())
         {
-                if(!whereClause.isEmpty()) whereClause += " AND ";
-                whereClause += QString("LIKE ?").arg(field);
-                bindValues << value.trimmed() + "%";
+            if(!whereClause.isEmpty()) whereClause += " AND ";
+
+            whereClause += field % " LIKE ? ";
+            bindValues << (value.trimmed() + "%");
         }
     };
 
@@ -1271,6 +1246,445 @@ QVector<DataModel::Guardian> DataAccess::GuardianDataHandler::searchGuardianByOc
     return guardiansList;
 
 }
+
+QVector<DataModel::Guardian> DataAccess::GuardianDataHandler::searchGuardiansByEducationLevel(const QString &educationLevel)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open " + db.lastError().text());
+        return      QVector<DataModel::Guardian> ();
+    }
+
+
+
+    if(educationLevel.trimmed().isEmpty())
+    {
+        qWarning() << "\033[33m Education level search criteria is empty\033[0m";
+        return QVector<DataModel::Guardian> ();
+    }
+
+
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
+    query.prepare(R"(
+                    SELECT
+                        g.guardian_id,
+                        g.person_id,
+                        g.occupation,
+                        g.phone_number,
+                        g.education_level,
+
+                        p.first_name,
+                        p.second_name,
+                        p.third_name,
+                        p.fourth_name,
+                        p.gender,
+                        p.date_of_birth
+                    FROM guardians g
+                    JOIN people p USING(person_id)
+                    WHERE g.education_level LIKE ?
+                    ORDER BY p.first_name, p.second_name
+)");
+
+    QString searchPattern = educationLevel.trimmed() + "%";
+    query.addBindValue(searchPattern);
+
+    if(!query.exec())
+    {
+        qCritical() << "\033[31m Failed to search guardians by education level:\033[0m" << query.lastError().text();
+        Logger::instance().error("Failed to search guardians by education level: " + query.lastError().text());
+        return QVector<DataModel::Guardian> ();
+    }
+    QVector<DataModel::Guardian> guardiansList;
+    while(query.next())
+    {
+        DataModel::Guardian g;
+        g.guardian_id = query.value("guardian_id").toInt();
+        g.person_id = query.value("person_id").toInt();
+        g.occupation = query.value("occupation").toString();
+        g.work_phone = query.value("phone_number").toString();
+        g.education_level = query.value("education_level").toString();
+
+        g.first_name = query.value("first_name").toString();
+        g.second_name = query.value("second_name").toString();
+        g.third_name = query.value("third_name").toString();
+        g.fourth_name = query.value("fourth_name").toString();
+        g.gender = query.value("gender").toChar();
+        g.date_of_birth = query.value("date_of_birth").toDate();
+        QStringList parts = {g.first_name, g.second_name, g.third_name, g.fourth_name};
+        parts.removeAll("");
+
+        g.full_name = parts.join(" ");
+
+        guardiansList.append(g);
+    }
+
+    qDebug() << "\033[32m Found" << guardiansList.size() << "guardians with education level:\033[0m" << educationLevel;
+    return guardiansList;
+}
+QVector<DataModel::Guardian> DataAccess::GuardianDataHandler::searchGuardiansByStudentName(
+    const QString &f_studentName,
+    const QString &s_studentName,
+    const QString &t_studentName,
+    const QString &ft_studentName)
+{
+    QVector<DataModel::Guardian> guardianList;
+
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+    if (!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open: " + db.lastError().text());
+        return guardianList;
+    }
+
+    QString whereClause;
+    QVector<QString> bindValues;
+
+    auto addCondition = [&](const QString& field, const QString& value)
+    {
+        if (!value.trimmed().isEmpty())
+        {
+            if (!whereClause.isEmpty()) whereClause += " AND ";
+            whereClause += QString("LOWER(%1) LIKE LOWER(?)").arg(field);
+            bindValues << (value.trimmed() + "%");
+        }
+    };
+
+    addCondition("s.first_name", f_studentName);
+    addCondition("s.second_name", s_studentName);
+    addCondition("s.third_name", t_studentName);
+    addCondition("s.fourth_name", ft_studentName);
+
+    if (whereClause.isEmpty())
+    {
+        qWarning() << "\033[33m No Student name criteria provided \033[0m";
+        return guardianList;
+    }
+
+    QString sql = QString(R"(
+        SELECT DISTINCT
+            g.guardian_id,
+            g.person_id,
+            g.occupation,
+            g.phone_number,
+            g.education_level,
+
+            p.first_name,
+            p.second_name,
+            p.third_name,
+            p.fourth_name,
+            p.gender,
+            p.date_of_birth,
+
+            s.first_name AS s_first_name,
+            s.second_name AS s_second_name,
+            s.third_name AS s_third_name,
+            s.fourth_name AS s_fourth_name,
+            sg.relationship,
+            sg.is_primary
+        FROM guardians g
+        JOIN people p USING(person_id)
+        JOIN student_guardians sg ON sg.guardian_id = g.guardian_id
+        JOIN people s ON s.person_id = sg.student_person_id
+        WHERE %1
+        ORDER BY s.first_name, s.second_name, p.first_name, p.second_name
+        LIMIT 100
+    )").arg(whereClause);
+
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
+
+    if (!query.prepare(sql))
+    {
+        qCritical() << "\033[31m Failed to prepare query:\033[0m" << query.lastError().text();
+        Logger::instance().error("Failed to prepare query: " + query.lastError().text());
+        return guardianList;
+    }
+
+    for (const QString& value : bindValues)
+        query.addBindValue(value);
+
+    if (!query.exec())
+    {
+        qCritical() << "\033[31m Failed to execute guardian search by student name:\033[0m" << query.lastError().text();
+        Logger::instance().error("Failed to execute guardian search by student name: " + query.lastError().text());
+        return guardianList;
+    }
+
+    while (query.next())
+    {
+        DataModel::Guardian g;
+
+        g.guardian_id = query.value("guardian_id").toInt();
+        g.person_id = query.value("person_id").toInt();
+        g.occupation = query.value("occupation").toString();
+        g.work_phone = query.value("phone_number").toString();
+        g.education_level = query.value("education_level").toString();
+
+        g.first_name = query.value("first_name").toString();
+        g.second_name = query.value("second_name").toString();
+        g.third_name = query.value("third_name").toString();
+        g.fourth_name = query.value("fourth_name").toString();
+
+        QStringList parts = { g.first_name, g.second_name, g.third_name, g.fourth_name };
+        parts.removeAll("");
+        g.full_name = parts.join(" ");
+
+        g.gender = query.value("gender").toChar();
+        g.date_of_birth = query.value("date_of_birth").toDate();
+
+        g.studentFirstName = query.value("s_first_name").toString();
+        g.studentSecondName = query.value("s_second_name").toString();
+        g.studentThirdName = query.value("s_third_name").toString();
+        g.studentFourthName = query.value("s_fourth_name").toString();
+
+        QStringList nameParts = { g.studentFirstName, g.studentSecondName, g.studentThirdName, g.studentFourthName };
+        nameParts.removeAll("");
+        g.studentFullName = nameParts.join(" ");
+
+        g.relationship = query.value("relationship").toString();
+        g.isPrimary = query.value("is_primary").toBool();
+
+        guardianList.append(g);
+    }
+
+    qDebug() << "\033[32m Found" << guardianList.size()
+             << "guardians for students matching criteria.\033[0m";
+
+    return guardianList;
+}
+
+std::optional<int> DataAccess::GuardianDataHandler::getGuardiansCount()
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open: " + db.lastError().text());
+        return std::nullopt;
+    }
+
+    QSqlQuery query (db);
+    query.setForwardOnly(true);
+    query.prepare("SELECT COUNT(*) AS guardian_count FROM guardians");
+
+    if(!query.exec())
+    {
+        qCritical() << "\033[31m Failed to get guardian count:\033[0m" << query.lastError().text();
+        Logger::instance().error("Failed to get guardian count: " + query.lastError().text());
+        return std::nullopt;
+    }
+
+    if(query.next())
+    {
+        int count = query.value("guardian_count").toInt();
+        qDebug() << "\033[32m Total guardians count:\033[0m" << count;
+        return count;
+    }
+
+    qWarning() << "\033[0mSome thing wrong!\033[0m";
+    return std::nullopt;
+}
+
+bool DataAccess::GuardianDataHandler::isGuardianExists(int guardianId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() <<"\033[31m Database is not open \033[0m"  << db.lastError().text();
+        Logger::instance().error("Database is not open" + db.lastError().text());
+
+        return false;
+    }
+
+    QSqlQuery query(db);
+
+    query.setForwardOnly(true);
+    query.prepare("SELECT 1 FROM guardians WHERE guardian_id = ? LIMIT 1");
+    query.addBindValue(guardianId);
+
+    if(!query.exec())
+    {
+        qCritical() << "\033[33m Failed to check guardian existence:\033[0m" << query.lastError().text();
+        Logger::instance().error("Failed to check guardian existence " +query.lastError().text());
+        return false;
+    }
+
+    return query.next();
+}
+
+bool DataAccess::GuardianDataHandler::isStudentGuardianRelationshipExists(int studentPersonId, int guardianId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open: " + db.lastError().text());
+        return false;
+    }
+
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
+    query.prepare("SELECT 1 FROM student_guardians WHERE student_person_id = ? AND guardian_id = ? LIMIT 1");
+
+    query.addBindValue(studentPersonId);
+    query.addBindValue(guardianId);
+
+    if(!query.exec())
+    {
+        qCritical() << "\033[31m Failed to check student-guardian relationship:\033[0m" << query.lastError().text();
+        Logger::instance().error("Failed to check student-guardian relationship: " + query.lastError().text());
+        return false;
+    }
+    return query.next();
+}
+
+bool DataAccess::GuardianDataHandler::hasStudentAnyGuardian(int studentPersonId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open: " + db.lastError().text());
+        return false;
+    }
+
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
+
+    query.prepare("SELECT 1 FROM student_guardians WHERE student_person_id = ? LIMIT 1");
+    query.addBindValue(studentPersonId);
+
+    if(!query.exec())
+    {
+        qCritical() << "\033[31m Failed to check student-guardian has any relationship:\033[0m" << query.lastError().text();
+        Logger::instance().error("Failed to check student-guardian has any relationship: " + query.lastError().text());
+        return false;
+    }
+
+    return query.next();
+}
+
+DataModel::Guardian DataAccess::GuardianDataHandler::getPrimaryGuardianInfo(int studentPersonId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open: " + db.lastError().text());
+        return DataModel::Guardian ();
+    }
+
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
+    query.prepare(R"(
+        SELECT
+            g.guardian_id,
+            g.person_id,
+            g.occupation,
+            g.phone_number,
+            g.education_level,
+
+            p.first_name,
+            p.second_name,
+            p.third_name,
+            p.fourth_name,
+            p.gender,
+            p.date_of_birth,
+            sg.relationshipl
+        FROM student_guardians sg
+        JOIN guardians g ON g.guardian_id = sg.guardian_id
+        JOIN people p ON p.person_id = g.person_id
+        WHERE sg.student_person_id = ? AND sg.is_primary = true
+        LIMIT 1
+)");
+
+    query.addBindValue(studentPersonId);
+
+    if(!query.exec())
+    {
+        qCritical() << "\033[31m Failed to get primary guardian info:\033[0m" << query.lastError().text();
+        Logger::instance().error("Failed to get primary guardian info: " + query.lastError().text());
+        return DataModel::Guardian();
+    }
+    DataModel::Guardian guardian;
+    if(query.next())
+    {
+        guardian.guardian_id = query.value("guardian_id").toInt();
+        guardian.person_id = query.value("person_id").toInt();
+        guardian.occupation = query.value("occupation").toString();
+        guardian.work_phone = query.value("phone_number").toString();
+        guardian.education_level =query.value("education_level").toString();
+        guardian.first_name = query.value("first_name").toString();
+        guardian.second_name = query.value("second_name").toString();
+        guardian.third_name = query.value("third_name").toString();
+        guardian.fourth_name = query.value("fourth_name").toString();
+        QStringList parts = {guardian.first_name,
+                                 guardian.second_name,
+                                     guardian.third_name,
+                                         guardian.fourth_name};
+        parts.removeAll("");
+        guardian.full_name = parts.join(" ");
+
+        guardian.gender = query.value("gender").toChar();
+        guardian.date_of_birth = query.value("date_of_birth").toDate();
+        guardian.relationship = query.value("relationship").toString();
+    }
+
+    return guardian;
+}
+
+bool DataAccess::GuardianDataHandler::hasPrimaryGuardian(int studentPersonId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open: " + db.lastError().text());
+        return false;
+    }
+
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
+    query.prepare("SELECT 1 FROM student_guardians WHERE student_person_id = ? AND is_primary = true LIMIT 1");
+    query.addBindValue(studentPersonId);
+
+if(!query.exec())
+{
+    qCritical() << "\033[31m Failed to check primary guardian:\033[0m" << query.lastError().text();
+    Logger::instance().error("Failed to check primary guardian" + query.lastError().text());
+    return false;
+}
+    return query.next();
+}
+
+// bool DataAccess::GuardianDataHandler::updateGuardinOccupation(int guardianId, const QString &occupation)
+// {
+        // I will complete it tmrw  -- GN
+// }
+
 
 
 
