@@ -1680,10 +1680,144 @@ if(!query.exec())
     return query.next();
 }
 
-// bool DataAccess::GuardianDataHandler::updateGuardinOccupation(int guardianId, const QString &occupation)
-// {
-        // I will complete it tmrw  -- GN
-// }
+bool DataAccess::GuardianDataHandler::updateGuardinOccupation(int guardianId, const QString &occupation)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open: " + db.lastError().text());
+        return false;
+    }
+
+    if(!isGuardianExists(guardianId))
+    {
+        qWarning() <<"\033[33m Guardian not found with ID:\033[0m" << guardianId;
+        return false;
+    }
+
+    QSqlQuery query(db);
+    query.setForwardOnly(true);
+    query.prepare(R"(
+            UPDATE guardians
+            SET occupation = ?
+            WHERE guardian_id = ?
+)");
+
+    query.addBindValue(occupation);
+    query.addBindValue(guardianId);
+
+    if(!query.exec())
+    {
+        qCritical() << "\033[31m Failed to update guardian occupation:\033[0m" << query.lastError().text();
+        Logger::instance().error("Failed to update guardian occupation: " + query.lastError().text());
+        return false;
+    }
+
+
+    if(query.numRowsAffected()  == 0)
+    {
+        qWarning() << "\033[33m No rows affected when updating occupation for guardian ID: \033[0m" << guardianId;
+        return false;
+    }
+
+    qInfo() <<"\033[32m Successfully updated occupation for guardian ID:\033[0m" << guardianId;
+
+    return true;
+}
+
+bool DataAccess::GuardianDataHandler::updateGuardinPhoneNumber(int guardianId, const QString &phoneNumber)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db  = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open: " + db.lastError().text());
+        return false;
+    }
+
+    if(!isGuardianExists(guardianId))
+    {
+          qCritical() << "\033[31m Guardian not found with ID:\033[0m" << guardianId;
+        return false;
+    }
+
+    QSqlQuery query(db);
+    query.prepare(R"(
+    UPDATE guardians
+    SET phone_number = ?
+    WHERE guardian_id = ?
+)");
+    query.addBindValue(phoneNumber);
+    query.addBindValue(guardianId);
+
+    if(!query.exec())
+    {
+        qCritical() << "\033[31m Failed to update guardian phone number:\033[0m" << query.lastError().text();
+        Logger::instance().error("Failed to update guardian phone number: " + query.lastError().text());
+        return false;
+    }
+
+    if(query.numRowsAffected() == 0)
+    {
+        qWarning() <<"\033[33m No rows affected when updating phone number for guardian ID:\033[0m" << guardianId;
+        return false;
+    }
+
+    qInfo() << "\033[32m Successfully updated phone number for guardian ID:\033[0m" << guardianId;
+    return true;
+}
+
+bool DataAccess::GuardianDataHandler::updateGuardinEducationLevel(int guardianId, const QString &educationLevel)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open.\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open: " + db.lastError().text());
+        return false;
+    }
+
+    if(!isGuardianExists(guardianId))
+    {
+            qCritical() << "\033[31m Guardian not found with ID:\033[0m" << guardianId;
+        return false;
+    }
+
+    QSqlQuery query(db);
+    query.prepare(R"(
+        UPDATE guardians
+        SET education_level = ?
+        WHERE guardian_id = ?
+)");
+    query.addBindValue(educationLevel);
+    query.addBindValue(guardianId);
+
+    if(!query.exec())
+    {
+        qCritical() << "\033[31m Failed to update education level:\033[0m" << query.lastError().text();
+        Logger::instance().error("Failed to update guardian education level: " + query.lastError().text());
+        return false;
+    }
+
+    if(query.numRowsAffected() == 0)
+    {
+        qWarning() << "\033[33m No rows affected when updating education level for guardian ID:\033[0m" << guardianId;
+        return false;
+    }
+
+
+    qInfo() << "\033[32m Successfully updated education level for guardian ID:\033[0m" << guardianId;
+    return true;
+}
+
+
 
 
 
