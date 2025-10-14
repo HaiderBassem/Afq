@@ -45,17 +45,6 @@ enum class EnrollmentStatus
     Unknown = -1
 };
 
-enum class StudentStatus
-{
-    Inactive = 0,
-    Active = 1,
-    Graduate = 2,
-    Transferred = 3,
-    Dismissed = 4,
-    Withdrawn = 5,
-    Failed = 6,
-    Unknown = -1
-};
 
 enum class AttendanceStatus
 {

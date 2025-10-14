@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Sql)
 find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -33,6 +35,11 @@ qt_add_qml_module(AfqApp
         SOURCES data/AcademicYearDataHandler.h data/AcademicYearDataHandler.cpp
         SOURCES
         SOURCES data/GuardianDataHandler.h data/GuardianDataHandler.cpp
+        SOURCES
+        SOURCES
+        SOURCES data/StudentDataHandler.h data/StudentDataHandler.cpp
+        SOURCES
+        SOURCES DataModel/Student.h DataModel/Student.cpp
 )
 
 target_link_libraries(AfqApp
@@ -40,4 +47,6 @@ target_link_libraries(AfqApp
         Qt6::Quick
         Qt6::Sql
 )
+target_link_libraries(AfqApp PRIVATE Qt6::Core)
+target_link_libraries(AfqApp PRIVATE Qt6::Core)
 target_link_libraries(AfqApp PRIVATE Qt6::Core)
