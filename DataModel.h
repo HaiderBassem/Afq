@@ -1,6 +1,7 @@
 #ifndef SCHOOL_DATAMODELS_H
 #define SCHOOL_DATAMODELS_H
 
+
 #include <QString>
 #include <QDate>
 #include <QDateTime>
@@ -1692,61 +1693,7 @@ public:
 
 // UTILITY STRUCTURES
 
-class StudentSummary : public BaseEntity
-{
-public:
-    int student_enrollment_id = 0;
-    QString full_name;
-    QString class_name;
-    QString section;
-    double final_average = 0.0;
-    int rank_in_class = 0;
-    int total_absences = 0;
-    int disciplinary_actions = 0;
-    StudentStatus status = StudentStatus::Unknown;
 
-    bool isValid() const override
-    {
-        return student_enrollment_id > 0 && !full_name.isEmpty();
-    }
-
-    QJsonObject toJson() const override
-    {
-        QJsonObject obj;
-        obj["student_enrollment_id"] = student_enrollment_id;
-        obj["full_name"] = full_name;
-        obj["class_name"] = class_name;
-        obj["section"] = section;
-        obj["final_average"] = final_average;
-        obj["rank_in_class"] = rank_in_class;
-        obj["total_absences"] = total_absences;
-        obj["disciplinary_actions"] = disciplinary_actions;
-        obj["status"] = static_cast<int>(status);
-        return obj;
-    }
-
-    void fromJson(const QJsonObject& json) override
-    {
-        student_enrollment_id = json["student_enrollment_id"].toInt();
-        full_name = json["full_name"].toString();
-        class_name = json["class_name"].toString();
-        section = json["section"].toString();
-        final_average = json["final_average"].toDouble();
-        rank_in_class = json["rank_in_class"].toInt();
-        total_absences = json["total_absences"].toInt();
-        disciplinary_actions = json["disciplinary_actions"].toInt();
-        status = static_cast<StudentStatus>(json["status"].toInt());
-    }
-
-    QString toString() const override
-    {
-        return QString("StudentSummary[ID:%1, Name:%2, Average:%3, Rank:%4]")
-        .arg(student_enrollment_id)
-            .arg(full_name)
-            .arg(final_average)
-            .arg(rank_in_class);
-    }
-};
 
 class ClassSummary : public BaseEntity
 {

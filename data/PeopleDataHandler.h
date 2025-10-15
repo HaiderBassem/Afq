@@ -18,7 +18,7 @@ class PeopleDataHandler
 public:
     // CRUD Operations
 
-    static bool addPerson(const DataModel::Person& person);
+    static std::optional<int> addPerson(const DataModel::Person& person);
     static std::optional<DataModel::Person> getPersonById(int personId);
     static QVector<DataModel::Person> getAllPeople();
     static bool updatePerson(const DataModel::Person& person);

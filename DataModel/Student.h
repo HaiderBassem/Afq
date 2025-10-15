@@ -26,29 +26,27 @@ enum class StudentType
     Regular = 0,
     Honors = 1,
     SpecialNeeds = 2,
-    Week = 3,
+    Weak = 3,
     Unknown = -1
 };
 
 
 
-inline QString studentToString(StudentStatus status)
+inline QString studentStatusToString(StudentStatus status)
 {
     switch (status)
     {
     case StudentStatus::Active: return QObject::tr("نشط");
     case StudentStatus::Inactive: return QObject::tr("غير نشط");
     case StudentStatus::Graduate: return QObject::tr("خريج");
-    case StudentStatus::Active: return QObject::tr("نشط");
     case StudentStatus::Transferred: return QObject::tr("منقول");
     case StudentStatus::Dismissed: return QObject::tr("مفصول");
     case StudentStatus::Withdrawn: return QObject::tr("منسحب");
     case StudentStatus::Failed: return QObject::tr("راسب");
     case StudentStatus::E_Learning: return QObject::tr("انتساب");
     case StudentStatus::Unknown: return QObject::tr("غير معروف");
-
     default:
-        case StudentStatus::Unknown: return QObject::tr("غير معروف");
+        return QObject::tr("غير معروف");
     }
 }
 
@@ -65,11 +63,11 @@ inline QString studentTypeToString(StudentType type)
     {
     case StudentType::Regular: return QObject::tr("عادي");
     case StudentType::Honors: return QObject::tr("متفوق");
-    case StudentType::Week: return QObject::tr("مو اكاديمي");
+    case StudentType::Weak: return QObject::tr("مو اكاديمي");
     case StudentType::SpecialNeeds: return QObject::tr("احتياجات خاصة");
     case StudentType::Unknown: return QObject::tr("غير معروف");
     default:
-        case StudentStatus::Unknown: return QObject::tr("غير معروف");
+        return QObject::tr("غير معروف");
     }
 }
 
@@ -81,14 +79,16 @@ public:
     explicit Student(QObject *parent = nullptr);
 
 
-    QString getFullName() const;
+    QString getFullName() const noexcept;
 
-    bool isValid()() const;
+    bool isValid() const override;
+
     bool isActive() const;
     bool isHonorsStudent() const;
     bool isRegularStudent() const;
     bool isWeekStudent() const;
     bool isSpecialNeedsStudent() const;
+    QString toString() const override;
 
     // josn serialization
 
@@ -108,7 +108,7 @@ private:
     QString second_name;
     QString third_name;
     QString fourth_name;
-    QString full_name; // I will complete it tmrw
+
     DataModel::Gender gender = DataModel::Gender::Male;
     QDate date_of_birth;
     int age = calculateAge();
@@ -127,47 +127,59 @@ private:
 
     int current_class_id =0;
     QString current_class_name ;
+    QString section;
     int current_year_id =0;
     QString current_year_name;
     double current_average= 0.0;
     int current_rank = 0;
 
     int calculateAge() const;
+    int total_absences = 0;
 
 
 
 
 };
-}
+
+
+
 
 
 
 class StudentSummary : public QObject, public BaseEntity
 {
+
 public:
     explicit StudentSummary(QObject *parent = nullptr);
     bool isValid() const override ;
     double getCompletionRate() const;
     QJsonObject toJson() const override;
-    void fromJson() override;
-    QString toString() const override;
+    void fromJson(const QJsonObject& json) override;
+    QString getFullName() const noexcept;
 
 
 
 private:
     int student_id;
     QString student_number;
-    QString full_name;
+    QString first_name;
+    QString second_name;
+    QString third_name;
+    QString fourth_name;
     QString class_name;
+    QString section;
     QString status;
-    double avarage= 0.0;
+    double average= 0.0;
     int rank = 0;
     int attendance_rate =0;
-    int completed_subjecs =0;
+    int completed_subjects =0;
     int total_subjects = 0;
 
-};
+    int total_absences = 0;
 
+
+};
+}
 #endif // STUDENT_H
 
 

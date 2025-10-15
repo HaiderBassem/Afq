@@ -9,22 +9,22 @@
 #include<QVariant>
 #include<QStringList>
 
-
-bool DataAccess::PeopleDataHandler::addPerson(const DataModel::Person &person)
+#include<optional>
+std::optional<int> DataAccess::PeopleDataHandler::addPerson(const DataModel::Person &person)
 {
     if(person.first_name.isEmpty() || person.second_name.isEmpty() || person.third_name.isEmpty()
             || !person.date_of_birth.isValid())
     {
         qWarning() << "\033[33m Person name fields cannot be empty \033[0m";
         Logger::instance().warning("Person name fields cannot be empty");
-        return false;
+        return std::nullopt;
     }
 
     if(!person.date_of_birth.isValid() || person.date_of_birth > QDate::currentDate().addYears(-6))
     {
         qWarning() << "\033[33m Invalid date of birth \033[0m";
         Logger::instance().error("Invalid date of birth");
-        return false;
+        return std::nullopt;
     }
 
     auto connWrapper = DatabaseManager::instance().getConnection();
@@ -34,14 +34,14 @@ bool DataAccess::PeopleDataHandler::addPerson(const DataModel::Person &person)
     {
         qWarning() << "\033[31m Database connection is not open \033[0m";
         Logger::instance().error("Database connection is not open");
-        return false;
+        return std::nullopt;
     }
 
     if(!db.transaction())
     {
         qWarning() << "\033[31m Cannot start transaction \033[0m";
         Logger::instance().error("Cannot start transaction");
-        return false;
+        return std::nullopt;
     }
 
     QSqlQuery query(db);
@@ -66,7 +66,7 @@ bool DataAccess::PeopleDataHandler::addPerson(const DataModel::Person &person)
         qCritical() <<"\033[31m Failed to add person\033[0m" << query.lastError().text();
         Logger::instance().error("Failed to add person " + query.lastError().text());
         db.rollback();
-        return false;
+        return std::nullopt;
     }
 
     if(query.next())
@@ -82,10 +82,10 @@ bool DataAccess::PeopleDataHandler::addPerson(const DataModel::Person &person)
         qCritical() <<"\033[31m Failed to commit\033[0m" << query.lastError().text();
         Logger::instance().error("Failed to commit" + query.lastError().text());
         db.rollback();
-        return false;
+        return std::nullopt;
     }
 
-    return true;
+    return query.value(0).toInt();
 }
 
 std::optional<DataModel::Person> DataAccess::PeopleDataHandler::getPersonById(int personId)
