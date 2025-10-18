@@ -5,12 +5,11 @@ project(Afq VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Sql)
-find_package(Qt6 REQUIRED COMPONENTS Core)
-find_package(Qt6 REQUIRED COMPONENTS Core)
-find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Sql)
 
-qt_standard_project_setup(REQUIRES 6.8)
+
+qt_standard_project_setup(REQUIRES 6.9.1)
+
 
 qt_add_executable(AfqApp
     main.cpp
@@ -31,15 +30,12 @@ qt_add_qml_module(AfqApp
     VERSION 1.0
     QML_FILES
         Main.qml
-        SOURCES data/LoggerWorker.h data/LoggerWorker.cpp
-        SOURCES data/AcademicYearDataHandler.h data/AcademicYearDataHandler.cpp
-        SOURCES
-        SOURCES data/GuardianDataHandler.h data/GuardianDataHandler.cpp
-        SOURCES
-        SOURCES
-        SOURCES data/StudentDataHandler.h data/StudentDataHandler.cpp
-        SOURCES
-        SOURCES DataModel/Student.h DataModel/Student.cpp
+    SOURCES
+        data/LoggerWorker.h data/LoggerWorker.cpp
+        data/AcademicYearDataHandler.h data/AcademicYearDataHandler.cpp
+        data/GuardianDataHandler.h data/GuardianDataHandler.cpp
+        data/StudentDataHandler.h data/StudentDataHandler.cpp
+        DataModel/Student.h DataModel/Student.cpp
 )
 
 target_link_libraries(AfqApp
@@ -47,6 +43,4 @@ target_link_libraries(AfqApp
         Qt6::Quick
         Qt6::Sql
 )
-target_link_libraries(AfqApp PRIVATE Qt6::Core)
-target_link_libraries(AfqApp PRIVATE Qt6::Core)
-target_link_libraries(AfqApp PRIVATE Qt6::Core)
+target_link_libraries(AfqApp PRIVATE Qt6::Core Qt6::Quick Qt6::Sql)

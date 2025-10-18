@@ -79,7 +79,7 @@ int DataModel::Student::calculateAge() const
 QString DataModel::Student::toString() const
 {
     return QString("Student[ID:%1, Number:%2, Name:%3, Status:%4, Class:%5]")
-        .arg(this->student_id)
+    .arg(this->student_id)
         .arg(this->student_number)
         .arg(this->getFullName())
         .arg(studentStatusToString(this->status))
@@ -129,7 +129,7 @@ void DataModel::Student::fromJson(const QJsonObject &json)
 
     QString genderStr = json.value("gender").toString().trimmed();
     this->gender = genderStr.isEmpty() ? Gender::Male
-                                 : DataModel::charToGender(genderStr[0]);
+                                       : DataModel::charToGender(genderStr[0]);
 
     this->date_of_birth = QDate::fromString(json.value("date_of_birth").toString(), Qt::ISODate);
     this->student_number = json.value("student_number").toString();
@@ -158,28 +158,212 @@ void DataModel::Student::fromJson(const QJsonObject &json)
 
 
 
+// getter
 
+int DataModel::Student::get_student_id() const
+{
+    return this->student_id;
+}
+int DataModel::Student::get_person_id() const
+{
+    return this->person_id;
+}
+QString DataModel::Student::get_first_name() const
+{
+    return this->first_name;
+}
+QString DataModel::Student::get_second_name() const
+{
+    return this->second_name;
+}
+QString DataModel::Student::get_third_name() const
+{
+    return this->third_name;
+}
+QString DataModel::Student::get_fourth_name() const
+{
+    return this->fourth_name;
+}
+QString DataModel::Student::get_student_number() const
+{
+    return this->student_number;
+}
+DataModel::Gender DataModel::Student::get_gender() const
+{
+    return this->gender;
+}
+QDate DataModel::Student::get_date_of_birth() const
+{
+    return this->date_of_birth;
+}
+int DataModel::Student::get_age() const
+{
+    return this->calculateAge();
+}
+DataModel::StudentStatus DataModel::Student::get_status() const
+{
+    return this->status;
+}
+DataModel::StudentType DataModel::Student::get_type() const
+{
+    return this->type;
+}
+QDate DataModel::Student::get_enrollment_date() const
+{
+    return this->enrollment_date;
+}
+QDate DataModel::Student::get_graduation_date() const
+{
+    return this->graduation_date;
+}
+QString DataModel::Student::get_phone() const
+{
+    return this->phone;
+}
+int DataModel::Student::get_current_class_id() const
+{
+    return this->current_class_id;
+}
+QString DataModel::Student::get_current_class_name() const
+{
+    return this->current_class_name;
+}
+QString DataModel::Student::get_section() const
+{
+    return this->section;
+}
+int DataModel::Student::get_current_year_id() const
+{
+    return this->current_year_id;
+}
+QString DataModel::Student::get_current_year_name() const
+{
+    return this->current_year_name;
+}
+double DataModel::Student::get_current_average() const
+{
+    return this->current_average;
+}
+int DataModel::Student::get_current_rank() const
+{
+    return this->current_rank;
+}
+int DataModel::Student::get_total_absences() const
+{
+    return this->total_absences;
+}
 
+// setter
 
+bool DataModel::Student::set_first_name(const QString &fname)
+{
+    if(!fname.isEmpty())
+    {
+        this->first_name = fname;
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_second_name(const QString &sname)
+{
+    if(!sname.isEmpty())
+    {
+        this->second_name = sname;
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_third_name(const QString &tname)
+{
+    if(!tname.isEmpty())
+    {
+        this->third_name = tname;
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_fourth_name(const QString &ftname)
+{
+    if(!ftname.isEmpty())
+    {
+        this->fourth_name = ftname;
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_gender(QChar gender)
+{
+    if(gender.isLetter() && gender == 'M' || 'm' || 'F' || 'f')
+    {
+        this->gender = DataModel::charToGender(gender);
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_date_of_birth(const QDate &dob)
+{
+    auto check = [](const QDate& d) {return (d.year() - QDate::currentDate().year()) > 6 ;};
+    if(dob.isValid() && check(dob))
+    {
+        this->date_of_birth = dob;
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_status(const StudentStatus &status)
+{
+    if(status != StudentStatus::Unknown)
+    {
+        this->status = status;
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_enrollment_date(const QDate &ed)
+{
+    if(ed.isValid())
+    {
+        this->enrollment_date = ed;
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_graduation_date(const QDate &gd)
+{
+    if(gd.isValid())
+    {
+        this->enrollment_date = gd;
+        return true;
+    }
+    return false;
+}
+bool DataModel::Student::set_phone(const QString &phone)
+{
+    static const QRegularExpression regex(R"(^\+?\d+$)");
 
+    if (!regex.match(phone).hasMatch())
+        return false;
 
+    this->phone = phone;
+    return true;
+}
 
+bool DataModel::Student::set_section(const QString &section)
+{
+    if (!QRegularExpression(R"(^[A-Z]$)").match(section).hasMatch())
+        return false;
 
-
-
-
-
-
-
-
+    this->section = section;
+    return true;
+}
 
 
 
@@ -188,13 +372,6 @@ void DataModel::Student::fromJson(const QJsonObject &json)
 
 
 // Student summary class
-
-
-
-
-
-
-
 
 DataModel::StudentSummary::StudentSummary(QObject *parent)
     : QObject(parent),
@@ -235,7 +412,7 @@ QJsonObject DataModel::StudentSummary::toJson() const
     obj["third_name"] = this->third_name;
     obj["fourth_name"] = this->fourth_name;
     obj["class_name"] = this->class_name;\
-    obj["section"] = this->section;
+        obj["section"] = this->section;
     obj["status"] = this->status;
     obj["average"] = this->average;
     obj["rank"] = this->rank;

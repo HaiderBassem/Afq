@@ -4,6 +4,9 @@
 #include"DataModel.h"
 
 #include <QObject>
+#include<QString>
+#include<QChar>
+#include<optional>
 namespace DataModel {
 
 
@@ -96,8 +99,46 @@ public:
     void fromJson(const QJsonObject &json) override;
 
 
+    // get proparity
+    int get_student_id() const;
+    int get_person_id() const;
+    QString get_first_name() const;
+    QString get_second_name() const;
+    QString get_third_name() const;
+    QString get_fourth_name() const;
+    QString get_student_number() const;
+    DataModel::Gender get_gender() const;
+    QDate get_date_of_birth() const;
+    int get_age() const;
+    QString get_student_number() const;
+    StudentStatus get_status() const;
+    StudentType get_type() const;
+    QDate get_enrollment_date() const;
+    QDate get_graduation_date() const;
+    QString get_phone() const;
+    int get_current_class_id() const;
+    QString get_current_class_name() const;
+    QString get_section() const;
+    int get_current_year_id() const;
+    QString get_current_year_name() const;
+    double get_current_average() const;
+    int get_current_rank() const;
+    int get_total_absences() const;
 
 
+
+
+    bool set_first_name(const QString& fname);
+    bool set_second_name(const QString& sname);
+    bool set_third_name(const QString& tname) ;
+    bool set_fourth_name(const QString& ftname);
+    bool set_gender(QChar gender) ;
+    bool set_date_of_birth(const QDate& dob) ;
+    bool set_status(const StudentStatus& status);
+    bool set_enrollment_date(const QDate& ed);
+    bool set_graduation_date(const QDate& gd);
+    bool set_phone(const QString& phone);
+    bool set_section(const QString& section);
 
 private:
 
