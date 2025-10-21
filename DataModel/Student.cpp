@@ -21,6 +21,87 @@ DataModel::Student::Student(QObject *parent)
 {
 }
 
+
+
+
+
+DataModel::Student::Student(const Student& other) {
+    set_student_id(other.get_student_id());
+    set_person_id(other.get_person_id());
+    set_first_name(other.get_first_name());
+    set_second_name(other.get_second_name());
+    set_third_name(other.get_third_name());
+    set_fourth_name(other.get_fourth_name());
+    set_gender(genderToQChar(other.gender));
+    set_date_of_birth(other.get_date_of_birth());
+    set_status(other.get_status());
+    set_enrollment_date(other.get_enrollment_date());
+    set_graduation_date(other.get_graduation_date());
+    set_section(other.get_section());
+}
+
+// Implement copy assignment operator
+DataModel::Student& DataModel::Student::operator=(const Student& other) {
+    if (this != &other) {
+        set_student_id(other.get_student_id());
+        set_person_id(other.get_person_id());
+        set_first_name(other.get_first_name());
+        set_second_name(other.get_second_name());
+        set_third_name(other.get_third_name());
+        set_fourth_name(other.get_fourth_name());
+        set_gender(genderToQChar(other.gender));
+        set_date_of_birth(other.get_date_of_birth());
+        set_status( other.get_status());
+        set_enrollment_date(other.get_enrollment_date());
+        set_graduation_date(other.get_graduation_date());
+        set_section(other.get_section());
+    }
+    return *this;
+}
+
+DataModel::Student::Student(Student &&other) noexcept
+{
+    set_student_id(other.get_student_id());
+    set_person_id(other.get_person_id());
+    set_first_name(std::move(other.first_name));
+    set_second_name(std::move(other.second_name));
+    set_third_name(std::move(other.third_name));
+    set_fourth_name(std::move(other.fourth_name));
+    set_gender(std::move(genderToQChar(other.gender)));
+    set_date_of_birth(other.get_date_of_birth());
+    set_status(other.get_status());
+    set_enrollment_date(other.get_enrollment_date());
+    set_graduation_date(other.get_graduation_date());
+    set_section(std::move(other.section));  
+
+}
+DataModel::Student &DataModel::Student::operator=(Student &&other) noexcept
+{
+    // TODO: insert return statement here
+    if (this != &other) {
+        set_student_id(other.get_student_id());
+        set_person_id(other.get_person_id());
+        set_first_name(std::move(other.first_name));
+        set_second_name(std::move(other.second_name));
+        set_third_name(std::move(other.third_name));
+        set_fourth_name(std::move(other.fourth_name));
+        set_gender(std::move(genderToQChar(other.gender)));
+        set_date_of_birth(other.get_date_of_birth());
+        set_status(other.get_status());
+        set_enrollment_date(other.get_enrollment_date());
+        set_graduation_date(other.get_graduation_date());
+        set_section(std::move(other.section));
+        return *this;
+}
+}
+
+
+DataModel::Student::~Student()
+{
+
+}
+
+
 //I think I don't need it ... but I will leave it here ..
 QString DataModel::Student::getFullName() const noexcept
 {
@@ -69,12 +150,40 @@ bool DataModel::Student::isSpecialNeedsStudent() const
     return this->type == StudentType::SpecialNeeds;
 }
 
+bool DataModel::Student::set_is_graduated(bool graduated)
+{
+    this->is_graduated = graduated;
+    return false;
+}
+
+bool DataModel::Student::set_is_repeated(bool repeated)
+{
+    this->is_repeated = repeated;
+    return false;
+}
+
+bool DataModel::Student::set_is_ministerial_exam(bool ministerial)
+{
+    this->is_ministerial_exam = ministerial;
+    return false;
+}
+
+bool DataModel::Student::set_is_eligible_for_exam(bool eligible)
+{
+    this->is_eligible_for_exam = eligible;
+    return false;
+}
+
 int DataModel::Student::calculateAge() const
 {
     if(!this->date_of_birth.isValid()) return 0;
     return QDate::currentDate().year() - this->date_of_birth.year();
 }
 
+int DataModel::Student::get_total_absences() const
+{
+    return this->total_absences;
+}
 
 QString DataModel::Student::toString() const
 {
@@ -188,7 +297,7 @@ QString DataModel::Student::get_student_number() const
 {
     return this->student_number;
 }
-DataModel::Gender DataModel::Student::get_gender() const
+DataModel::Gender DataModel::Student::get_gender() 
 {
     return this->gender;
 }
@@ -254,6 +363,26 @@ int DataModel::Student::get_total_absences() const
 }
 
 // setter
+
+bool DataModel::Student::set_student_id(int student_id)
+{
+    if(student_id > 0)
+    {
+        this->student_id = student_id;
+        return true;
+    }
+    return false;
+}
+
+bool DataModel::Student::set_person_id(int person_id)
+{
+    if(person_id > 0)
+    {
+        this->person_id = person_id;
+        return true;
+    }
+    return false;
+}
 
 bool DataModel::Student::set_first_name(const QString &fname)
 {
@@ -365,11 +494,105 @@ bool DataModel::Student::set_section(const QString &section)
     return true;
 }
 
+bool DataModel::Student::set_age(int age)
+{
+    if(age >= 6 && age <= 100)
+    {
+        this->age = age;
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_current_class_id(int class_id)
+{
+    if(class_id > 0)
+    {
+        this->current_class_id = class_id;
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_current_class_name(const QString &class_name)
+{
+    if(!class_name.isEmpty())
+    {
+        this->current_class_name = class_name;
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_current_year_id(int year_id)
+{
+    if(year_id > 0)
+    {
+        this->current_year_id = year_id;
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_current_year_name(const QString &year_name)
+{
+    if(!year_name.isEmpty())
+    {
+        this->current_year_name = year_name;
+        return true;
+    }
+    return false;
+}
 
+bool DataModel::Student::set_current_average(double average)
+{
+    if(average >= 0.0 && average <= 100.0)
+    {
+        this->current_average = average;
+        return true;
+    }
+    return false;
+}
+
+bool DataModel::Student::set_current_rank(int rank)
+{
+    if(rank > 0)
+    {
+        this->current_rank = rank;
+        return true;
+    }
+    return false;
+}
+
+bool DataModel::Student::set_repeat_count(int)
+{
+    if(repeat_count >= 0)
+    {
+        this->repeat_count = repeat_count;
+        return true;
+    }
+    return false;
+}
+
+bool DataModel::Student::set_student_number(const QString &student_number)
+{
+    if(!student_number.isEmpty())
+    {
+        this->student_number = student_number;
+        return true;
+    }
+    return false;
+}
+
+bool DataModel::Student::set_grade_level(int level)
+{
+    if(level > 0)
+    {
+        this->grade_level = level;
+        return true;
+    }
+    return false;
+}
 
 // Student summary class
 

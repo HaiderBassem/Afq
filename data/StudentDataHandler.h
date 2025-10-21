@@ -108,7 +108,7 @@ private:
 
     static DataModel::Student createStudentFromQuery(const QSqlQuery& query);
     static DataModel::StudentSummary createStudentSummaryFromQuery(const QSqlQuery& query);
-    static DataModel::StudentEnrollment createStudentEnrollmentFromQuery(const QSqlQuery& query);
+std::unique_ptr<DataModel::Student> createStudentEnrollmentFromQuery(const QSqlQuery& query);
 
 };
 }

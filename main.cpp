@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
     g.education_level = "PhD";
 
 
-    DataAccess::GuardianDataHandler::isGuardianExists(2) ? qDebug() << "Hi" : qDebug() <<"bye";
+    //DataAccess::GuardianDataHandler::isGuardianExists(2) ? qDebug() << "Hi" : qDebug() <<"bye";
     // qDebug() <<DataAccess::AcademicYearDataHandler::getDaysElapsedInAcademicYear(5) << "\n";
 
     return app.exec();

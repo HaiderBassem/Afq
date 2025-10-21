@@ -7,6 +7,7 @@
 #include<QString>
 #include<QChar>
 #include<optional>
+
 namespace DataModel {
 
 
@@ -75,11 +76,32 @@ inline QString studentTypeToString(StudentType type)
 }
 
 
+inline QChar genderToQChar(Gender gender) 
+{
+    return static_cast<char>(gender);
+}
+
+inline Gender qCharToGender(QChar ch) 
+{
+    switch (ch.toLatin1()) {
+        case 'M': return Gender::Male;
+        case 'F': return Gender::Female;
+        default: return Gender::Male; // default case
+    }
+}
+
+
 class Student : public QObject, public BaseEntity
 {
 
 public:
     explicit Student(QObject *parent = nullptr);
+    Student(const Student& other);
+    Student& operator=(const Student& other);
+    Student(Student&& other) noexcept;
+    Student& operator=(Student&& other) noexcept;
+    ~Student() override;
+
 
 
     QString getFullName() const noexcept;
@@ -91,6 +113,10 @@ public:
     bool isRegularStudent() const;
     bool isWeekStudent() const;
     bool isSpecialNeedsStudent() const;
+    bool set_is_graduated(bool graduated);
+    bool set_is_repeated(bool repeated);
+    bool set_is_ministerial_exam(bool ministerial);
+    bool set_is_eligible_for_exam(bool eligible);
     QString toString() const override;
 
     // josn serialization
@@ -102,15 +128,14 @@ public:
     // get proparity
     int get_student_id() const;
     int get_person_id() const;
+    QString get_student_number() const;
     QString get_first_name() const;
     QString get_second_name() const;
     QString get_third_name() const;
     QString get_fourth_name() const;
-    QString get_student_number() const;
-    DataModel::Gender get_gender() const;
+    DataModel::Gender get_gender();
     QDate get_date_of_birth() const;
     int get_age() const;
-    QString get_student_number() const;
     StudentStatus get_status() const;
     StudentType get_type() const;
     QDate get_enrollment_date() const;
@@ -127,7 +152,8 @@ public:
 
 
 
-
+    bool set_student_id(int student_id);
+    bool set_person_id(int person_id);
     bool set_first_name(const QString& fname);
     bool set_second_name(const QString& sname);
     bool set_third_name(const QString& tname) ;
@@ -138,19 +164,29 @@ public:
     bool set_enrollment_date(const QDate& ed);
     bool set_graduation_date(const QDate& gd);
     bool set_phone(const QString& phone);
+    bool set_age(int age);
+    bool set_current_class_id(int class_id);
+    bool set_current_class_name(const QString& class_name);
     bool set_section(const QString& section);
+    bool set_current_year_id(int year_id);
+    bool set_current_year_name(const QString& year_name);
+    bool set_current_average(double average);
+    bool set_current_rank(int rank);
+    bool set_repeat_count(int);
+    bool set_student_number(const QString& student_number);
+    bool set_grade_level(int level);
 
 private:
 
+
     int student_id = 0;
     int person_id =0;
-
+    QString student_number;
     QString first_name;
     QString second_name;
     QString third_name;
     QString fourth_name;
-
-    DataModel::Gender gender = DataModel::Gender::Male;
+    DataModel::Gender gender;
     QDate date_of_birth;
     int age = calculateAge();
 
@@ -161,6 +197,11 @@ private:
     QDate graduation_date;
     QString phone;
 
+    bool is_graduated = false;
+    bool is_repeated = false;
+    bool is_ministerial_exam = false;
+    bool is_eligible_for_exam = false;
+ 
 
 
 
@@ -173,7 +214,8 @@ private:
     QString current_year_name;
     double current_average= 0.0;
     int current_rank = 0;
-
+    int grade_level;
+    int repeat_count =0;
     int calculateAge() const;
     int total_absences = 0;
 
