@@ -10,6 +10,7 @@
 #include<QSqlDatabase>
 
 #include<optional>
+#include<vector>
 
 
 std::optional<int> DataAccess::StudentDataHandler::addStudent(const DataModel::Student &student)
@@ -584,13 +585,355 @@ QVector<DataModel::Student> DataAccess::StudentDataHandler::getAllStudents()
 }
 
 
+std::optional<int> DataAccess::StudentDataHandler::enrollStudent(int studentId, int classId, int yearId, const QDate &startDate, DataModel::StudentStatus status)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    if (!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open\033[0m";
+        Logger::instance().error("Database connection is not open for enrolling student");
+        return std::nullopt;
+    }
+    if (!db.transaction())
+    {
+        qCritical() << "\033[31m Failed to start transaction\033[0m";
+        Logger::instance().error("Failed to start transaction for enrolling student");
+        return std::nullopt;
+    }
+
+    try{
+        QSqlQuery chkActiveEnrollmentQuery(db);
+        chkActiveEnrollmentQuery.setForwardOnly(true);
+        chkActiveEnrollmentQuery.prepare(R"(
+            SELECT 1 FROM student_enrollment
+            WHERE enrollment_id = ?
+            AND year_id = ?
+            AND status = 1 -- Active status
+            AND (end_date IS NULL OR end_date > CURRENT_DATE) 
+        )");
+
+        chkActiveEnrollmentQuery.addBindValue(studentId);
+        chkActiveEnrollmentQuery.addBindValue(yearId);
+
+        if(chkActiveEnrollmentQuery.exec() && chkActiveEnrollmentQuery.next())
+        {
+            qCritical() << "\033[31m Student is already actively enrolled for the specified year. Student ID: \033[0m" << studentId;
+            Logger::instance().error("Student is already actively enrolled for the specified year. Student ID: " + QString::number(studentId));
+            db.rollback();
+            return std::nullopt;
+        }
+
+        // end previous enrollment if exists
+        QSqlQuery endPreviousEnrollmentQuery(db);
+        endPreviousEnrollmentQuery.prepare(R"(
+            UPDATE student_enrollment
+            SET end_date = ?
+                status = 3 -- Transferred status
+                updated_at = CURRENT_TIMESTAMP
+            WHERE enrollment_id = ?
+            AND status = 1 -- Active status
+            AND (end_date IS NULL OR end_date > CURRENT_DATE)
+        )");
+        endPreviousEnrollmentQuery.addBindValue(startDate.addDays(-1));
+        endPreviousEnrollmentQuery.addBindValue(studentId);
+        if(!endPreviousEnrollmentQuery.exec())
+        {
+            qCritical() << "\033[31m Failed to end previous enrollment for student ID: \033[0m" << studentId;
+            Logger::instance().error("Failed to end previous enrollment for student ID: " + QString::number(studentId));
+            db.rollback();
+            return std::nullopt;
+        }
+
+
+        int studentEnrollmentStatus = static_cast<int>(status);
+        QSqlQuery insertEnrollmentQuery(db);
+        insertEnrollmentQuery.prepare(R"(
+            INSERT INTO student_enrollment
+            (enrollment_id, class_id, year_id, start_date, status)
+            VALUES (?, ?, ?, CURRENT_DATE, ?)
+            RETURNING student_enrollment_id
+        )");
+        insertEnrollmentQuery.addBindValue(studentId);
+        insertEnrollmentQuery.addBindValue(classId);
+        insertEnrollmentQuery.addBindValue(yearId);
+        insertEnrollmentQuery.addBindValue(studentEnrollmentStatus);
+        if(!insertEnrollmentQuery.exec() || !insertEnrollmentQuery.next())
+        {
+            qCritical() << "\033[31m Failed to enroll student ID: \033[0m" << studentId;
+            Logger::instance().error("Failed to enroll student ID: " + QString::number(studentId));
+            db.rollback();
+            return std::nullopt;
+        }
+        int studentEnrollmentId = insertEnrollmentQuery.value("student_enrollment_id").toInt();
+
+        QSqlQuery updateStudentStatusQuery(db);
+        updateStudentStatusQuery.prepare(R"(
+            UPDATE enrollment
+                SET status = ?
+                updated_at = CURRENT_TIMESTAMP
+            WHERE enrollment_id = ? AND role = 0
+        )");
+
+        int enrollmentStatus = static_cast<int>(status);
+        updateStudentStatusQuery.addBindValue(enrollmentStatus);
+        updateStudentStatusQuery.addBindValue(studentId);
+        if(!updateStudentStatusQuery.exec() || updateStudentStatusQuery.numRowsAffected() == 0)
+        {
+            qCritical() << "\033[31m Failed to update enrollment status for student ID: \033[0m" << studentId;
+            Logger::instance().error("Failed to update enrollment status for student ID: " + QString::number(studentId));
+            db.rollback();
+            return std::nullopt;
+        }
+        if(!db.commit())
+        {
+            qCritical() << "\033[31m Failed to commit transaction for enrolling student ID: \033[0m" << studentId;
+            Logger::instance().error("Failed to commit transaction for enrolling student ID: " + QString::number(studentId));
+            db.rollback();
+            return std::nullopt;
+        }
+        qInfo() << "\033[32m Successfully enrolled student with ID:\033[0m" << studentId
+                << "to class ID:" << classId
+                << "for academic year ID:" << yearId;
+        return studentEnrollmentId;
+    }
+    catch (const std::exception& e)
+    {
+        qCritical() <<"\033[31mException occurred while enrolling student: " <<e.what();
+        Logger::instance().error("Exception occurred while enrolling student: " + QString(e.what()));
+        db.rollback();
+    }
+
+    return std::nullopt;
+}
+
+bool DataAccess::StudentDataHandler::reenrollStudent(int studentId, int classId, int yearId, const QString &section, const QDate &reenrollDate)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    if (!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open\033[0m";
+        Logger::instance().error("Database connection is not open for reenrolling student");
+        return false;
+    }
+    if (!db.transaction())
+    {
+        qCritical() << "\033[31m Failed to start transaction\033[0m";
+        Logger::instance().error("Failed to start transaction for reenrolling student");    
+        return false;
+    }
+
+    try{
+        QSqlQuery getLastEnrollmentQuery(db);
+        getLastEnrollmentQuery.setForwardOnly(true);
+        getLastEnrollmentQuery.prepare(R"(
+            SELECT student_enrollment_id, 
+            class_id, year_id, final_average,
+            rank_in_class
+            repeat_count, is_graduated
+            FROM student_enrollment
+            WHERE enrollment_id = ?
+            ORDER BY start_date DESC
+            LIMIT 1
+        )");
+
+        getLastEnrollmentQuery.addBindValue(studentId);
+        int lastClassId = -1;
+        int lastYearId = -1;
+        double lastAverage = 0.0;
+        int lastRank = 0;
+        int lastRepeatCount = 0;
+        bool wasGraduated = false;
+        if(getLastEnrollmentQuery.exec() && getLastEnrollmentQuery.next())
+        {
+            lastClassId = getLastEnrollmentQuery.value("class_id").toInt();
+            lastYearId = getLastEnrollmentQuery.value("year_id").toInt();
+            lastAverage = getLastEnrollmentQuery.value("final_average").toDouble();
+            lastRank = getLastEnrollmentQuery.value("rank_in_class").toInt();
+            lastRepeatCount = getLastEnrollmentQuery.value("repeat_count").toInt();
+            wasGraduated = getLastEnrollmentQuery.value("is_graduated").toBool();
+        }
+        else
+        {
+            qCritical() << "\033[31m No previous enrollment found for student ID: \033[0m" << studentId;
+            Logger::instance().error("No previous enrollment found for student ID: " + QString::number(studentId));
+            db.rollback();
+            return false;
+        }
+        getLastEnrollmentQuery.finish();
+        // Check if the student was graduated
+        if (wasGraduated) 
+        {
+            qCritical() << "\033[31m Cannot reenroll a graduated student\033[0m";
+            Logger::instance().error("Cannot reenroll a graduated student");
+            db.rollback();
+            return false;
+        }
+    
+
+        bool shouldRepeat  = calculateIfShouldRepeat(lastClassId, classId, lastAverage, db);
+        if(shouldRepeat && lastClassId == classId)
+        {
+            lastRepeatCount += 1;
+        }
+
+        QSqlQuery insertReenrollmentQuery(db);
+        insertReenrollmentQuery.prepare(R"(
+            INSERT INTO student_enrollment
+            (enrollment_id, class_id, year_id, start_date, status)
+            VALUES (?, ?, ?, ?, 1)
+            RETURNING student_enrollment_id
+        )");
+        insertReenrollmentQuery.addBindValue(studentId);
+        insertReenrollmentQuery.addBindValue(classId);
+        insertReenrollmentQuery.addBindValue(yearId);
+        insertReenrollmentQuery.addBindValue(reenrollDate);
+        if(!insertReenrollmentQuery.exec() || !insertReenrollmentQuery.next())
+        {
+            qCritical() << "\033[31m Failed to reenroll student ID: \033[0m" << studentId;
+            Logger::instance().error("Failed to reenroll student ID: " + QString::number(studentId));
+            db.rollback();
+            return false;
+        }
+        int newStudentEnrollmentId = insertReenrollmentQuery.value("student_enrollment_id").toInt();
+
+             QSqlQuery updateStudentStatusQuery(db);
+        updateStudentStatusQuery.prepare(R"(
+            UPDATE enrollment 
+            SET status = 1,  -- Active
+                updated_at = CURRENT_TIMESTAMP
+            WHERE enrollment_id = ?
+        )");
+        updateStudentStatusQuery.addBindValue(studentId);
+        if(!updateStudentStatusQuery.exec() || updateStudentStatusQuery.numRowsAffected() == 0)
+        {
+            qCritical() << "\033[31m Failed to update enrollment status for student ID: \033[0m" << studentId;
+            Logger::instance().error("Failed to update enrollment status for student ID: " + QString::number(studentId));
+            db.rollback();  
+            return false;
+        }
+
+        if(!db.commit())
+        {
+            qCritical() << "\033[31m Failed to commit transaction for reenrolling student ID: \033[0m" << studentId;
+            Logger::instance().error("Failed to commit transaction for reenrolling student ID: " + QString::number(studentId));
+            db.rollback();
+            return false;
+        }
+        qInfo() << "\033[32m Successfully reenrolled student with ID:\033[0m" << studentId
+                << "to class ID:" << classId
+                << "for academic year ID:" << yearId;
+        return true;
 
 
 
 
 
 
+    return false;
+}catch (const std::exception& e)
+    {
+        qCritical() <<"\033[31mException occurred while reenrolling student: " <<e.what();
+        Logger::instance().error("Exception occurred while reenrolling student: " + QString(e.what()));
+        db.rollback();
+    }
+    return false;
 
+}
+
+
+
+
+
+bool DataAccess::StudentDataHandler::updateStudentsAcademicInfo(int classId, int yearId)
+{
+
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    if (!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open\033[0m";
+        Logger::instance().error("Database connection is not open for updating student academic info");
+        return false;
+    }
+
+
+    if(!db.transaction())
+    {
+        qCritical() << "\033[31m Failed to start transaction\033[0m";
+        Logger::instance().error("Failed to start transaction for updating student academic info");
+        return false;
+    }
+
+    try{
+
+        calculateRankForStudentInClass(classId, yearId);
+
+        QSqlQuery getAvgsQuery(db);
+        getAvgsQuery.setForwardOnly(true);
+        getAvgsQuery.prepare(R"(
+            SELECT se.student_enrollment_id, se.final_average
+            FROM student_enrollment se
+            WHERE se.class_id = ?
+            AND se.year_id = ?
+            AND se.status = 1 -- Active status only
+        )");
+        getAvgsQuery.addBindValue(classId);
+        getAvgsQuery.addBindValue(yearId);
+
+
+        if(!getAvgsQuery.exec())
+        {
+            qCritical() << "\033[31m Failed to get student averages for class ID: \033[0m" << classId;
+            Logger::instance().error("Failed to get student averages for class ID: " + QString::number(classId));
+            db.rollback();
+            return false;
+        }
+        std::vector<std::pair<int, bool>> isElegibleList;
+        while(getAvgsQuery.next())
+        {
+            isElegibleList.push_back({
+                getAvgsQuery.value("student_enrollment_id").toInt(),
+                getAvgsQuery.value("final_average").toDouble() >= 50.0
+            });   
+        }
+        
+        getAvgsQuery.finish();
+        QSqlQuery updateElegiblityQuery(db);
+        updateElegiblityQuery.prepare(R"(
+            UPDATE student_enrollment
+            SET
+                is_eligible_for_exam = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE student_enrollment_id = ?
+        )");
+
+        for(const auto& [id, isElegible] : isElegibleList)
+        {
+            updateElegiblityQuery.bindValue(0, isElegible);
+            updateElegiblityQuery.bindValue(1, id);
+            if(!updateElegiblityQuery.exec() || updateElegiblityQuery.numRowsAffected() == 0)
+            {
+                qCritical() << "\033[31m Failed to update eligibility for student enrollment ID: \033[0m" << id 
+                            << "Class ID:" << classId << "Year ID:" 
+                            << yearId <<"\nErorr: "<< updateElegiblityQuery.lastError().text();
+                db.rollback();
+                return false;
+            }
+        }
+
+    }
+    catch (const std::exception& e)
+    {
+        qCritical() <<"\033[31mException occurred while updating student academic info: " <<e.what();
+        Logger::instance().error("Exception occurred while updating student academic info: " + QString(e.what()));
+        db.rollback();
+        return false;
+    }
+
+    return false;
+}
 
 
 
@@ -659,4 +1002,198 @@ DataModel::Student DataAccess::StudentDataHandler::createStudentFromQuery(const 
     }
     
     return student;
+}
+
+bool DataAccess::StudentDataHandler::calculateIfShouldRepeat(int lastClassId, int newClassId, double lastAverage, const QSqlDatabase& db)
+{
+    if (lastClassId == newClassId)
+    {
+        return true; // Student should repeat the class
+    }
+
+
+    if (lastAverage < 60.0)
+    {
+        return true; // Student should repeat due to low average
+    }
+
+    QSqlQuery getGradesQuery(db);
+    getGradesQuery.setForwardOnly(true);
+    getGradesQuery.prepare(R"(
+        SELECT c.grade_level AS old_grade, nc.grade_level AS new_grade
+        FROM classes c
+        JOIN classes nc ON 1=1
+        WHERE c.class_id = ? AND nc.class_id = ?
+
+    )");
+    getGradesQuery.addBindValue(lastClassId);
+    getGradesQuery.addBindValue(newClassId);
+    if (getGradesQuery.exec() && getGradesQuery.next())
+    {
+        int oldGrade = getGradesQuery.value("old_grade").toInt();
+        int newGrade = getGradesQuery.value("new_grade").toInt();
+
+        if (newGrade <= oldGrade)
+        {
+            return true; // Student should repeat due to same or lower grade level
+        }
+    }
+
+    return false;
+}
+
+bool DataAccess::StudentDataHandler::calculateRankForStudentInClass(int classId, int yearId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open\033[0m";
+        Logger::instance().error("Database connection is not open for calculating student rank");
+        return false;
+    }
+
+    try{
+        QSqlQuery getStudenetsQuery(db);
+        getStudenetsQuery.setForwardOnly(true);
+        getStudenetsQuery.prepare(R"(
+            SELECT se.student_enrollment_id, se.final_average
+            FROM student_enrollment se
+            WHERE se.class_id = ?
+            AND se.year_id = ?  
+            AND se.status = 1 -- Active status only
+            AND se.final_average IS NOT NULL
+            ORDER BY se.final_average DESC
+        )");
+        getStudenetsQuery.addBindValue(classId);
+        getStudenetsQuery.addBindValue(yearId);
+
+        if(!getStudenetsQuery.exec())
+        {
+            qCritical() << "\033[31m Failed to retrieve students for class ID: \033[0m" << classId;
+            Logger::instance().error("Failed to retrieve students for class ID: " + QString::number(classId));
+            return false;
+        }
+        QVector<QPair<int, double>> studentAverages; // int for student id, double for average
+        while(getStudenetsQuery.next())
+        {
+            int studentEnrollmentId = getStudenetsQuery.value("student_enrollment_id").toInt();
+            double average = getStudenetsQuery.value("final_average").toDouble();
+            studentAverages.append(qMakePair(studentEnrollmentId, average));
+        }
+
+        if(studentAverages.isEmpty())
+        {
+            qInfo() << "\033[33m No students found for class ID: \033[0m" << classId;
+            Logger::instance().info("No students found for class ID: " + QString::number(classId));
+            return true; // No students to rank
+        }
+
+        
+        if(studentAverages.isEmpty()) return true;
+
+
+        std::sort(studentAverages.begin(), studentAverages.end(), [](const QPair<int, double>& a, const QPair<int, double>& b)
+        {
+            return a.second > b.second; // Descending order
+            // { (1, 78.5), (2, 91.0), (3, 85.3) }
+            // after sort { (2, 91.0), (3, 85.3), (1, 78.5) }
+        });
+
+
+        int currentRank = 1;
+        int nextRank = 1;
+        double previousAverage = -1.0;
+
+        QVector<QPair<int, int>> rankUpdates; // student id, rank
+        for (const auto& pair : studentAverages)
+        {
+            int studentId = pair.first;
+            double average = pair.second;
+
+            if (std::abs(average - previousAverage) > 0.001) // New average, update rank
+                currentRank = nextRank;
+
+            rankUpdates.append(qMakePair(studentId, currentRank));
+            previousAverage = average;
+            nextRank++;
+        }
+
+        if(!db.transaction())
+        {
+            qCritical() << "\033[31m Failed to start transaction for updating ranks in class ID: \033[0m" << classId;
+            Logger::instance().error("Failed to start transaction for updating ranks in class ID: " + QString::number(classId));
+            return false;
+        }
+
+        QSqlQuery updateRankQuery(db);
+        updateRankQuery.prepare("UPDATE student_enrollment SET rank_in_class = ? WHERE student_enrollment_id = ?");
+
+
+
+  
+        for(const auto& [id, r] : rankUpdates)
+        {
+            updateRankQuery.bindValue(0, r); // rank
+            updateRankQuery.bindValue(1, id);  // student id
+            if(!updateRankQuery.exec())
+            {
+                qCritical() << "\033[31m Failed to update rank for student enrollment ID: \033[0m" << id;
+            }
+        }
+
+        if(!db.commit())
+        {
+            qCritical() << "\033[31m Failed to commit transaction for updating ranks in class ID: \033[0m" << classId;
+            Logger::instance().error("Failed to commit transaction for updating ranks in class ID: " + QString::number(classId));
+            db.rollback();
+            return false;
+        }
+
+        qInfo() << "\033[32m Successfully calculated and updated ranks for class ID:\033[0m" << classId;
+        return true;
+}catch (const std::exception& e)
+{
+    qCritical() <<"\033[31mException occurred while calculating student ranks: " <<e.what();
+    Logger::instance().error("Exception occurred while calculating student ranks: " + QString(e.what()));
+
+}
+
+    return false;
+}
+
+bool DataAccess::StudentDataHandler::isStudentExists(int studentId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    if (!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open\033[0m";
+        Logger::instance().error("Database connection is not open for checking student existence");
+        return false;
+    }
+    try{
+    QSqlQuery chkQuery(db);
+    chkQuery.setForwardOnly(true);
+    chkQuery.prepare(R"(
+        SELECT 1 FROM enrollment
+        WHERE enrollment_id = ? AND role = 0
+    )");
+    chkQuery.addBindValue(studentId);
+    if(chkQuery.exec() && chkQuery.next())
+    {
+        return true;
+    }
+    else
+    {
+        qInfo() << "\033[33m Student does not exist with ID: \033[0m" << studentId;
+        Logger::instance().info("Student does not exist with ID: " + QString::number(studentId));
+    }
+}catch (const std::exception& e)
+{
+    qCritical() <<"\033[31mException occurred while checking student existence: " <<e.what();
+    Logger::instance().error("Exception occurred while checking student existence: " + QString(e.what()));
+}
+    return false;
 }

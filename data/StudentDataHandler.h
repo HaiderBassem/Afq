@@ -20,15 +20,18 @@ public:
     static DataModel::Student getStudentById(int studentId);
     static DataModel::Student getStudentByPersonId(int personId);
     static DataModel::Student getStudentByStudentNumber(int studentNumber);
+    
     static QVector<DataModel::Student> getAllStudents();
     static QVector<DataModel::Student> getActiveStudents();
     static QVector<DataModel::Student> getInactiveStudent();
     static QVector<DataModel::Student> getGraduatedStudents();
     static QVector<DataModel::Student> getGraduatedStudents(int yearId);
-    static bool reenrollStudent(int StudentId, int ClassId, int yearId);
-    static bool updateStudentAcademicInfo(int studentId, double average, int rank, int absences);
+    
+    static std::optional<int> enrollStudent(int studentId, int classId, int yearId, const QDate& startDate, DataModel::StudentStatus status = DataModel::StudentStatus::Active);
+    static bool reenrollStudent(int studentId, int classId, int yearId, const QString& section, const QDate& reenrollDate);
+    static bool updateStudentsAcademicInfo(int classId, int yearId);
 
-    static int enrollStudent(int studentId, int classId, const QString& section, int yearId);
+
     static bool withdrawStudent(int studentId, const QString& reason = "");
     static bool transferStudent(int studentId, int newClassId, const QString& section, const QString& reason = "");
 
@@ -108,7 +111,10 @@ private:
 
     static DataModel::Student createStudentFromQuery(const QSqlQuery& query);
     static DataModel::StudentSummary createStudentSummaryFromQuery(const QSqlQuery& query);
-std::unique_ptr<DataModel::Student> createStudentEnrollmentFromQuery(const QSqlQuery& query);
+    //std::unique_ptr<DataModel::Student> createStudentEnrollmentFromQuery(const QSqlQuery& query);
+
+    static bool calculateIfShouldRepeat(int lastClassId, int classId, double lastAverage, const QSqlDatabase& db);
+    static bool calculateRankForStudentInClass(int classId, int yearId);
 
 };
 }
