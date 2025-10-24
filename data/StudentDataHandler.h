@@ -32,8 +32,11 @@ public:
     static bool updateStudentsAcademicInfo(int classId, int yearId);
 
 
-    static bool withdrawStudent(int studentId, const QString& reason = "");
-    static bool transferStudent(int studentId, int newClassId, const QString& section, const QString& reason = "");
+    static bool withdrawStudent(int studentId,int yearId,  const QString& reason = "");
+    static bool transferStudent(int studentId, int yearId, const QString& reason);
+    //TODO: iplement graduate student later
+    static bool graduateStudent(int studentId, const QDate& graduationDate ); 
+
 
     //searching
 
@@ -60,11 +63,11 @@ public:
 
     // checking
 
-    static bool isStudentExists(int studentId);
+    static bool isStudentExists(int studentId, const QSqlDatabase& db);
     static bool isStudentExistsByPersonId(int personId);
     static bool isStudentExists(const QString& studentNumber);
     static bool isStudentEnrolled(const QString& studentNumber, int yearId);
-    static bool isStudentActive(int studentId);
+    static bool isStudentActive(int studentId,  const QSqlDatabase& db);
     static bool isStudentGraduated(int studentId);
     static bool canGraduateStudent(int studentId);
     static bool isStudentPassedAllSubjects(int studentId);

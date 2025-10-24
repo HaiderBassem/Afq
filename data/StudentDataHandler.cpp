@@ -935,10 +935,136 @@ bool DataAccess::StudentDataHandler::updateStudentsAcademicInfo(int classId, int
     return false;
 }
 
+bool DataAccess::StudentDataHandler::withdrawStudent(int studentId, int yearId, const QString &reason)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+
+if (!db.isOpen())
+{
+    qCritical() << "\033[31m Database connection is not open\033[0m";
+    Logger::instance().error("Database connection is not open for withdrawing student");
+    return false;
+}
+
+if (!db.transaction())
+{
+    qCritical() << "\033[31m Failed to start transaction\033[0m";
+    Logger::instance().error("Failed to start transaction for withdrawing student");
+    return false;
+}
+
+    if(!isStudentActive(studentId, db)) 
+    {
+        db.rollback();
+        return false;
+    }
+
+    try{
+
+        QSqlQuery updateEnrollmentQuery(db);
+        updateEnrollmentQuery.prepare(R"(
+            UPDATE student_enrollment
+            SET end_date = CURRENT_DATE,
+                status = 4 -- withdrawn,
+                updated_at = CURRENT_TIMESTAMP
+                WHERE student_enrollment_id = ? AND year_id = ?
+        )");
+        updateEnrollmentQuery.addBindValue(studentId);
+        updateEnrollmentQuery.addBindValue(yearId);
 
 
+        if(!updateEnrollmentQuery.exec() || updateEnrollmentQuery.numRowsAffected() == 0)
+        {
+            qCritical() << "\033[31m Failed to withdraw student ID: \033[0m" << studentId << "for year ID:" << yearId;
+            Logger::instance().error("Failed to withdraw student ID: " + QString::number(studentId) + " for year ID: " + QString::number(yearId));
+            db.rollback();
+            return false;
+        }
+        if(!db.commit())
+        {
+            qCritical() << "\033[31m Failed to commit transaction for withdrawing student ID: \033[0m" << studentId;
+            Logger::instance().error("Failed to commit transaction for withdrawing student ID: " + QString::number(studentId));
+            db.rollback();
+            return false;
+        }
+        qInfo() << "\033[32m Successfully withdrew student with ID:\033[0m" << studentId 
+                << "from academic year ID:" << yearId;
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        qCritical() <<"\033[31mException occurred while withdrawing student: " <<e.what();
+        Logger::instance().error("Exception occurred while withdrawing student: " + QString(e.what()));
+        db.rollback();
+    }
+    return false;
+}
 
+bool DataAccess::StudentDataHandler::transferStudent(int studentId, int yearId, const QString& reason)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
 
+if (!db.isOpen())
+{
+    qCritical() << "\033[31m Database connection is not open\033[0m";
+    Logger::instance().error("Database connection is not open for transferring student");   
+    return false;
+}
+
+if (!db.transaction())
+{
+    qCritical() << "\033[31m Failed to start transaction\033[0m";
+    Logger::instance().error("Failed to start transaction for transferring student");
+    db.rollback();
+    return false;
+}
+
+if(!StudentDataHandler::isStudentExists(studentId, db))
+{
+    db.rollback();
+    return false;
+}
+
+try{
+    QSqlQuery updateEnrollmentQuery(db);
+    updateEnrollmentQuery.prepare(R"(
+        UPDATE student_enrollment
+        SET class_id =?,
+            status = 3, -- transferred
+            notes = ?,
+            updated_at = CURRENT_TIMESTAMP
+            WHERE enrollment_id = ? AND year_id = ?
+        )");
+
+    updateEnrollmentQuery.addBindValue(studentId);
+    updateEnrollmentQuery.addBindValue(yearId);
+    updateEnrollmentQuery.addBindValue(reason);
+    if(!updateEnrollmentQuery.exec() || updateEnrollmentQuery.numRowsAffected() == 0)
+    {
+        qCritical() << "\033[31m Failed to transfer student ID: \033[0m" << studentId << "for year ID:" << yearId;
+        Logger::instance().error("Failed to transfer student ID: " + QString::number(studentId) + " for year ID: " + QString::number(yearId));
+        db.rollback();
+        return false;
+    }
+    if(!db.commit())
+    {
+        qCritical() << "\033[31m Failed to commit transaction for transferring student ID: \033[0m" << studentId;
+        Logger::instance().error("Failed to commit transaction for transferring student ID: " + QString::number(studentId));
+        db.rollback();
+        return false;
+    }
+}
+catch (const std::exception& e)
+{
+    qCritical() <<"\033[31mException occurred while transferring student: " <<e.what();
+    Logger::instance().error("Exception occurred while transferring student: " + QString(e.what()));
+    db.rollback();
+    return false;
+}
+return true;
+}
 
 // private members
 DataModel::Student DataAccess::StudentDataHandler::createStudentFromQuery(const QSqlQuery& query)
@@ -1163,10 +1289,8 @@ bool DataAccess::StudentDataHandler::calculateRankForStudentInClass(int classId,
     return false;
 }
 
-bool DataAccess::StudentDataHandler::isStudentExists(int studentId)
+bool DataAccess::StudentDataHandler::isStudentExists(int studentId, const QSqlDatabase& db)
 {
-    const auto& connWrapper = DatabaseManager::instance().getConnection();
-    QSqlDatabase db = connWrapper->database();
     if (!db.isOpen())
     {
         qCritical() << "\033[31m Database connection is not open\033[0m";
@@ -1196,4 +1320,41 @@ bool DataAccess::StudentDataHandler::isStudentExists(int studentId)
     Logger::instance().error("Exception occurred while checking student existence: " + QString(e.what()));
 }
     return false;
+}
+
+bool DataAccess::StudentDataHandler::isStudentActive(int studentId, const QSqlDatabase& db)
+{
+    if (!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open\033[0m";
+        Logger::instance().error("Database connection is not open for checking student activity");
+        return false;
+    }
+
+    try{
+    QSqlQuery chkQuery(db);
+    chkQuery.setForwardOnly(true);
+    chkQuery.prepare(R"(
+        SELECT 1 FROM enrollment
+        WHERE enrollment_id = ? AND role = 0 AND status = 1 -- Active status
+        LIMIT 1
+    )");
+
+    chkQuery.addBindValue(studentId);
+    if(chkQuery.exec() && chkQuery.next())
+    {
+        // the student is active
+        qInfo() << "\033[32m Student is active with ID: \033[0m" << studentId;
+        return chkQuery.value(0).toBool();
+    } 
+
+    return chkQuery.value(0).toBool();
+}
+catch (const std::exception& e)
+{
+    qCritical() <<"\033[31mException occurred while checking student activity: " << e.what();
+    Logger::instance().error("Exception occurred while checking student activity: " + QString(e.what()));
+     return false;
+}   
+   
 }
