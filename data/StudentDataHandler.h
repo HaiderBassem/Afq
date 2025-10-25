@@ -34,13 +34,12 @@ public:
 
     static bool withdrawStudent(int studentId,int yearId,  const QString& reason = "");
     static bool transferStudent(int studentId, int yearId, const QString& reason);
-    //TODO: iplement graduate student later
-    static bool graduateStudent(int studentId, const QDate& graduationDate ); 
+    static bool graduateStudent(int studentId, int classId, int yearId, const QDate& graduationDate); 
 
 
     //searching
 
-    static QVector<DataModel::Student> searchStudentsByName(const QString& fNmae, const QString& sName ="", const QString& tName = "",const QString& ftName ="", std::optional<int> classId= std::nullopt, const QString& section="",std::optional<int> yearId = std::nullopt);
+    static QVector<DataModel::Student> searchStudentsByName(const QString& fNmae, const QString& sName ="", const QString& tName = "",const QString& ftName ="", std::optional<int> classId= std::nullopt, const QString& section="",int yearId = 0);
     static DataModel::Student searchStudentByStudentNumber(const QString& studentNumber);
     static QVector<DataModel::Student> getStdentsByClass(const QString& className,const QString& section ,int yearId);
     static QVector<DataModel::Student> getStdentsByClass(const QString& className, int yearId);
@@ -71,6 +70,9 @@ public:
     static bool isStudentGraduated(int studentId);
     static bool canGraduateStudent(int studentId);
     static bool isStudentPassedAllSubjects(int studentId);
+    static bool shouldStudentPass(int studentId, int classId, int yearId, double passMark = 50.0, const QSqlDatabase& db);
+    static bool evaluateAllSubjectsAbove50(int studentId, int classId, int yearId, const QSqlDatabase& db);
+
 
 
     static DataModel::StudentEnrollment getCurrentEnrollment(int studentId);
@@ -115,6 +117,7 @@ private:
     static DataModel::Student createStudentFromQuery(const QSqlQuery& query);
     static DataModel::StudentSummary createStudentSummaryFromQuery(const QSqlQuery& query);
     //std::unique_ptr<DataModel::Student> createStudentEnrollmentFromQuery(const QSqlQuery& query);
+    
 
     static bool calculateIfShouldRepeat(int lastClassId, int classId, double lastAverage, const QSqlDatabase& db);
     static bool calculateRankForStudentInClass(int classId, int yearId);

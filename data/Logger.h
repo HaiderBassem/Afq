@@ -9,11 +9,10 @@ public:
     Logger& operator=(const Logger&) = delete;
     Logger(Logger&&) = delete;
     Logger& operator=(Logger&&) = delete;
-
-    // الحصول على النسخة الوحيدة
+    // get the one copy only
     static Logger& instance();
 
-    // وظائف التسجيل
+
     void log(const QString &message);
     void debug(const QString &message);
     void info(const QString &message);

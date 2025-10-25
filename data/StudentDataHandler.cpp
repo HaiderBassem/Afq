@@ -11,7 +11,9 @@
 
 #include<optional>
 #include<vector>
-
+#include<variant>
+#include<iostream>
+#include<iomanip>
 
 std::optional<int> DataAccess::StudentDataHandler::addStudent(const DataModel::Student &student)
 {
@@ -1066,6 +1068,416 @@ catch (const std::exception& e)
 return true;
 }
 
+bool DataAccess::StudentDataHandler::graduateStudent(int studentId, int classId, int yearId, const QDate &graduationDate)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+
+    if(!db.open())
+    {
+        std::cerr << "\033[31m Database connection is not open \033[0m" << db.lastError().text().toStdString();
+        Logger::instance().error("Database connection is not open " + db.lastError().text());
+        return false;
+    }
+
+    if(!db.transaction())
+    {
+        std::cerr << "\033[31m Failed to start transaction for graduation \033[0m" << db.lastError().text().toStdString();
+        Logger::instance().error("Failed to start transaction " + db.lastError().text());
+        return false;
+    }
+
+
+    if(!evaluateAllSubjectsAbove50(studentId, classId, yearId, db))
+    {
+        db.rollback();
+        return false;
+    }
+
+    int studentEnrollmentId = getStudentEnrollmentById(studentId).enrollment_id; // student id = student enrollment id 
+    // TODO: check the student at end level of studying
+   try{
+    QSqlQuery updateEnrollmentQuery(db);
+    updateEnrollmentQuery.prepare(R"(
+        UPDATE student_enrollment
+            SET status = 2, -- graduate
+                end_date = ?, 
+                is_graduated = true,
+                updated_at = CURRENT_TIMESTAMP,
+                notes = COALESCE(notes, '') || ' [GRADUATED on ' || ? || ']'
+
+                WHERE student_enrollment_id = ?
+        )");
+        updateEnrollmentQuery.addBindValue(graduationDate);
+        updateEnrollmentQuery.addBindValue(graduationDate.toString("yyyy-MM-dd"));
+        updateEnrollmentQuery.addBindValue(studentEnrollmentId);
+
+        if(!updateEnrollmentQuery.exec())
+        {
+            std::cerr << "\033[31m Failed to update student enrollment ID: " << studentEnrollmentId << updateEnrollmentQuery.lastError().text().toStdString();
+            Logger::instance().error("Failed to update student enrollment: " + updateEnrollmentQuery.lastError().text());
+            db.rollback();
+            return false;
+        }
+
+        QSqlQuery updateStudentStatusQuery(db);
+        updateStudentStatusQuery.prepare(R"(
+            UPDATE enrollment
+            SET status = 2, -- Graduated
+                end_date = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE enrollment_id = ?
+            )");
+            updateStudentStatusQuery.addBindValue(graduationDate);
+            updateStudentStatusQuery.addBindValue(studentId);
+
+            if(!updateStudentStatusQuery.exec())
+            {
+                qCritical() <<"\033[31m Failed to update student status:\033[0m" << updateStudentStatusQuery.lastError().text();
+                Logger::instance().error("Failed to update student status " + updateStudentStatusQuery.lastError().text());
+                db.rollback();
+                return false;
+            }
+            
+            // TODO: get the certification
+            // TODO: update the class statistics
+            
+            if(!db.commit())
+            {
+                qCritical() << "\033[31m Failed to commit transaction:\033[0m" << db.lastError().text();
+                Logger::instance().error("Failed to commit transaction: " + db.lastError().text());
+                db.rollback();
+                return false;
+            }
+
+             qInfo() << "\033[32m Successfully graduated student with ID:\033[0m" << studentId 
+                << "from class:" << classId 
+                << "year:" << yearId
+                << "on:" << graduationDate.toString("yyyy-MM-dd");
+        }
+        catch(const std::exception& e)
+        {
+            qCritical() << "\033[31m Exception occurred while graduating student:\033[0m" << e.what();
+            Logger::instance().error("Exception occurred while graduating student: " + QString(e.what()));
+            db.rollback();
+            return false;
+        }
+    return true;
+}
+
+QVector<DataModel::Student> DataAccess::StudentDataHandler::searchStudentsByName(const QString &fName, const QString &sName, const QString &tName, const QString &ftName, std::optional<int> classId, const QString &section, int yearId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    QVector<DataModel::Student> students;
+    if(!db.open())
+    {
+        std::cerr << "\033[31m Database connection is not open \033[0m" << db.lastError().text().toStdString();
+        Logger::instance().error("Database connection is not open " + db.lastError().text());
+        return QVector<DataModel::Student>();
+    }
+
+    try 
+    {
+        // TODO: add total absences to database and here 
+        QString queryStr = R"(
+            SELECT 
+                e.enrollment_id AS student_id,
+                e.enrollment_number AS student_number,
+                p.person_id,
+                p.first_name,
+                p.second_name,
+                p.third_name,
+                p.fourth_name,
+                p.gender,
+                p.date_of_birth,
+                
+                -- e.start_date AS enrollment_date,
+                -- e.end_date AS graduation_date, 
+
+                se.class_id AS current_class_id,
+                se.year_id AS current_year_id,
+                
+                e.status AS enrollment_status,
+                se.final_average AS current_average,
+                se.rank_in_class AS current_rank,
+               -- se.total_absences,
+                
+                c.name AS class_name,
+                ay.name AS year_name
+            FROM enrollment e
+            JOIN people p ON e.person_id = p.person_id
+            LEFT JOIN student_enrollment se ON e.enrollment_id = se.enrollment_id
+            AND se.status =1
+            AND (se.end_date IS NULL OR se.end_date > CURRENT_DATE)
+            LEFT JOIN classes c ON se.class_id = c.class_id 
+            LEFT JOIN academic_year ay ON se.year_id = ay.year_id
+            WHERE e.role = 0
+            LIMIT 100
+        )";
+        QVector<QString> conditions;
+        QVector<QVariant> bindValues;
+
+        // for strings conditions
+        auto addStringCondition = [&](const QString& value, const QString& condition)
+        {
+            if(!value.isEmpty())
+            {
+                conditions << condition;
+                bindValues <<   "%" + value + "%";
+            }
+        };
+        /// for int conditions
+        auto addIntConditions = [&](std::optional<int> value, const QString& condition)
+        {
+            if(value.has_value() && value.value() > 0)
+            {
+                conditions << condition;
+                bindValues << value.value();
+            } 
+        };
+
+        addStringCondition(fName, "p.first_name LIKE ?");
+        addStringCondition(sName, "p.second_name LIKE ?");
+        addStringCondition(tName, "p.third_name LIKE ?");
+        addStringCondition(ftName, "p.fourth_name LIKE ?");
+        addIntConditions(classId, "se.class_id = ?");
+
+        if(!section.isEmpty())
+        {
+            conditions << "c.section ILIKE ?";
+            bindValues << "%" + section + "%";
+        }
+        if(yearId > 0)
+        {
+            conditions << "se.year_id = ?";
+            bindValues << yearId;
+        }
+        if(!conditions.isEmpty())
+        {
+            queryStr += " AND " + conditions.join(" AND ");
+        }
+
+        queryStr += " ORDER BY p.first_name, p.second_name, p.third_name";
+
+        QSqlQuery query(db);
+        query.setForwardOnly(true);
+        query.prepare(queryStr);
+
+        for(const QVariant& value : bindValues)
+        {
+            query.addBindValue(value);
+        }
+
+        if(!query.exec())
+        {
+            qCritical() << "\033[31m Failed to search students by name:\033[0m" << query.lastError().text();
+            Logger::instance().error("Failed to search students by name: " + query.lastError().text());
+            return QVector<DataModel::Student>();
+        }
+     
+        while(query.next())
+        {
+            students.append(createStudentFromQuery(query));
+        }
+        
+        qInfo() << "\033[32m Found" << students.size() << "students matching search criteria\033[0m";
+        return students;
+    }
+    catch(const std::exception& e)
+    {
+               qCritical() << "\033[31m Exception occurred while searching students by name:\033[0m" << e.what();
+        Logger::instance().error("Exception occurred while searching students by name: " + QString(e.what()));
+        return QVector<DataModel::Student>();
+    }
+
+
+    return  QVector<DataModel::Student>();
+}
+
+DataModel::Student DataAccess::StudentDataHandler::searchStudentByStudentNumber(const QString &studentNumber)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    DataModel::Student student;
+
+    if(!db.open())
+    {
+        std::cerr << "\033[31m Database connection is not open \033[0m" << db.lastError().text().toStdString();
+        Logger::instance().error("Database connection is not open " + db.lastError().text());
+        return DataModel::Student();
+    }
+    try
+    {
+QString queryStr = R"(
+    SELECT 
+        e.enrollment_id AS student_id,
+        p.first_name,
+        p.second_name,
+        p.third_name,
+        p.fourth_name,
+        p.gender,
+        p.date_of_birth,
+        se.class_id AS current_class_id,
+        se.year_id AS current_year_id,
+        e.status AS enrollment_status,
+        se.final_average AS current_average,
+        se.rank_in_class AS current_rank,
+        c.name AS class_name,
+        ay.name AS year_name
+    FROM enrollment e 
+    JOIN people p ON e.person_id = p.person_id
+    LEFT JOIN student_enrollment se ON e.enrollment_id = se.enrollment_id
+        AND se.status = 1
+        AND (se.end_date IS NULL OR se.end_date > CURRENT_DATE)
+    LEFT JOIN classes c ON se.class_id = c.class_id 
+    LEFT JOIN academic_year ay ON se.year_id = ay.year_id 
+    WHERE e.enrollment_number = ? AND e.role = 0  
+    LIMIT 1
+)";
+
+
+         QSqlQuery query(db);
+         query.setForwardOnly(true);
+        query.prepare(queryStr);
+        query.addBindValue(studentNumber);
+
+        if(!query.exec())
+        {
+            qCritical() << "\033[31m Failed to search students by name:\033[0m" << query.lastError().text();
+            Logger::instance().error("Failed to search students by name: " + query.lastError().text());
+            return DataModel::Student();
+        }
+        while(query.next())
+        {
+            student = createStudentFromQuery(query);
+        }
+        qInfo() << "\033[32m Found student matching search criteria\033[0m";
+        return student;
+
+    }
+    catch(const std::exception& e)
+    {
+               qCritical() << "\033[31m Exception occurred while searching students by name:\033[0m" << e.what();
+        Logger::instance().error("Exception occurred while searching students by name: " + QString(e.what()));
+        return DataModel::Student();
+    }
+
+    return DataModel::Student();
+}
+
+QVector<DataModel::Student> DataAccess::StudentDataHandler::getStdentsByClass(const QString &className, const QString &section, int yearId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
+    QVector<DataModel::Student> students;
+
+    if(db.isOpen())
+    {
+        qCritical() << "\033[31m Database isn't open \033[0m" << db.lastError().text();
+        Logger::instance().error("Database isn't open " + db.lastError().text());
+        return QVector<DataModel::Student>();
+    }
+
+    try{
+        QString queryStr = R"(
+            SELECT DISTINC
+                e.enrollment_id AS student_id,
+                e.enrollment_number AS student_number,
+                p.person_id, 
+                p.first_name,
+                p.second_name,
+                p.third_name,
+                p.fourth_name,
+                p.gender,
+                p.date_of_birth,
+                e.start_date AS enrollment_date,
+                e.end_date AS graduation_date,
+                se.class_id AS current_class_id,
+                se.year_id AS current_year_id,
+                e.status AS enrollment_status,
+                se.final_average AS current_average,
+                se.rank_in_class AS current_rank,
+                se.is_eligible_for_exam,
+                c.name AS class_name,
+                c.section AS class_section,
+                c.grade_level,
+                ay.name AS year_name,
+                es.name AS stage_name
+            FROM enrollment e 
+            JOIN people p ON e.person_id = p.person_id
+            JOIN student_enrollment se ON e.enrollment_id = se.enrollment_id
+            JOIN classes c ON se.class_id = c.class_id 
+            JOIN academic_year ay ON se.year_id = ay.year_id 
+            JOIN education_stages es ON c.stage_id = es.stage_id
+            WHERE e.role = 0 -- just students 
+            AND se.status = 1 -- active students
+            AND (se.end_date IS NULL OR se.end_date > CURRENT_DATE)
+        )";
+
+   
+        std::vector<std::pair<std::string, std::variant<int,std::string>>> conditionsAndValues; // TODO: edit all lambda exp. to be like this  
+
+        auto addCondition = [&](const std::string& value, const std::variant<int,std::string>& condition)
+        {
+            if(!value.empty())
+            {
+                conditionsAndValues.push_back({value,condition});
+            }
+        };
+
+        if(!className.isEmpty()) addCondition("c.name LIKE ?",  std::variant<int,std::string>{ className.toStdString() + "%"} );
+        if(!section.isEmpty()) addCondition("c.section LIKE ?", std::variant<int,std::string>{section.toStdString() + "%"});
+        if(yearId > 0) addCondition("se.year_id = ?",std::variant<int,std::string>{yearId});
+
+        if(!conditionsAndValues.empty())
+        {
+            QStringList condList;
+            for(const auto& [condStr, value] : conditionsAndValues)
+                condList.append(QString::fromStdString(condStr));
+            queryStr += " AND " + condList.join( " AND ");
+        }
+
+        QSqlQuery query(db);
+        query.setForwardOnly(true);
+        query.prepare(queryStr);
+
+  for (const auto& [condStr, value] : conditionsAndValues)
+    {
+        std::visit([&query](auto&& arg)
+        {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, std::string>)
+                query.addBindValue(QString::fromStdString(arg));
+            else
+                query.addBindValue(arg);
+        }, value);
+    }
+
+         if (!query.exec()) 
+         {
+            qCritical() << "\033[31m Failed to get students by class:\033[0m" << query.lastError().text();
+            Logger::instance().error("Failed to get students by class: " + query.lastError().text());
+            return QVector<DataModel::Student>();
+        }
+        while(query.next())
+        {
+            students.append(createStudentFromQuery(query));
+        }
+        qInfo() << "\033[32m Found" << students.size() << "students in class search:\033[0m"
+                << "Class:" << className << "Section:" << section << "Year:" << yearId;
+        return students;
+    }
+    catch (const std::exception& e) 
+    {
+        qCritical() << "\033[31m Exception occurred while getting students by class:\033[0m" << e.what();
+        Logger::instance().error("Exception occurred while getting students by class: " + QString(e.what()));
+        return students;
+    }
+
+    return QVector<DataModel::Student>();
+}
+
 // private members
 DataModel::Student DataAccess::StudentDataHandler::createStudentFromQuery(const QSqlQuery& query)
 {
@@ -1357,4 +1769,71 @@ catch (const std::exception& e)
      return false;
 }   
    
+}
+
+bool DataAccess::StudentDataHandler::shouldStudentPass(int studentId, int classId, int yearId, double passMark, const QSqlDatabase& db)
+{
+    QSqlQuery getStudentInfo(db);
+    getStudentInfo.prepare(R"(
+            SELECT             
+        )");
+    return false;
+}
+
+bool DataAccess::StudentDataHandler::evaluateAllSubjectsAbove50(int studentId, int classId, int yearId, const QSqlDatabase &db)
+{
+    QSqlQuery query(db);
+    query.prepare(R"(
+        SELECT 
+            s.subject_id,
+            s.name AS subject_name,
+            (MAX(CASE WHEN g.exam_type = 4 THEN g.score ELSE NULL END) * 100.0 /
+             NULLIF(MAX(CASE WHEN g.exam_type = 4 THEN g.max_score ELSE NULL END), 0)) AS final_percentage
+            
+            FROM subjects s
+            JOIN curriculum cu ON s.subject_id = cu.subject_id
+            JOIN course_offering co ON cu.curriculum_id = co.curriculum_id 
+            JOIN student_enrollment se ON se.class_id = cu.class_id
+            AND se.year_id = cu.year_id
+            LEFT JOIN grades g ON g.offering_id = co.offering_id
+            AND g.student_enrollment_id = se.student_enrollment_id
+            WHERE se.enrollment_id = ?
+            AND se.class_id = ? 
+            AND se.year_id = ? 
+            GROUP BY s.subject_id, s.name
+        )");
+        query.addBindValue(studentId);
+        query.addBindValue(classId);
+        query.addBindValue(yearId);
+        
+        if(!query.exec())
+        {
+            qFatal() << "\033[31m Failed to evaluate subjects: \033[0m" << query.lastError().text();
+            Logger::instance().error("Failed to evaluate subjects: " + query.lastError().text());
+            return false;
+        }
+
+    bool allSubjectsPass = true;
+    std::vector<std::string> passedSubjects;
+    std::vector<std::string> failedSubjects;
+
+    while (query.next()) 
+    {
+        std::string subjectName = query.value("subject_name").toString().toStdString();
+        double finalPercentage = query.value("final_percentage").toDouble();
+        
+        if(finalPercentage  >= 50.0)
+        {
+            passedSubjects.push_back(subjectName + " (" + std::to_string(finalPercentage) + ")");
+        }
+        else
+        {
+            allSubjectsPass = false;
+            failedSubjects.push_back(subjectName  + " (" + std::to_string(finalPercentage) + ")");
+            std::cerr << "\033[31m Failed subject: " << subjectName
+                      << " score: " << std::fixed << std::setprecision(1)
+                      <<finalPercentage <<"%\033[0m" <<std::endl;
+        }
+    }
+    return allSubjectsPass;
 }
