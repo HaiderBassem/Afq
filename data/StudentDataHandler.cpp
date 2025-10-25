@@ -1366,7 +1366,7 @@ QString queryStr = R"(
     return DataModel::Student();
 }
 
-QVector<DataModel::Student> DataAccess::StudentDataHandler::getStdentsByClass(const QString &className, const QString &section, int yearId)
+QVector<DataModel::Student> DataAccess::StudentDataHandler::getStudentsByClass(const QString &className, const QString &section, int yearId)
 {
     const auto& connWrapper = DatabaseManager::instance().getConnection();
     QSqlDatabase db = connWrapper->database();
