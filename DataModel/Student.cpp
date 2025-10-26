@@ -145,10 +145,7 @@ bool DataModel::Student::isWeekStudent() const
     return this->type == StudentType::Weak;
 }
 
-bool DataModel::Student::isSpecialNeedsStudent() const
-{
-    return this->type == StudentType::SpecialNeeds;
-}
+
 
 bool DataModel::Student::set_is_graduated(bool graduated)
 {

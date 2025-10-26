@@ -27,12 +27,14 @@ enum class StudentStatus
 
 enum class StudentType
 {
-    Regular = 0,
-    Honors = 1,
-    SpecialNeeds = 2,
+    // degrees
+    Regular = 1,
+    Honors = 2,
     Weak = 3,
     Unknown = -1
 };
+
+
 
 
 
@@ -68,8 +70,6 @@ inline QString studentTypeToString(StudentType type)
     case StudentType::Regular: return QObject::tr("عادي");
     case StudentType::Honors: return QObject::tr("متفوق");
     case StudentType::Weak: return QObject::tr("مو اكاديمي");
-    case StudentType::SpecialNeeds: return QObject::tr("احتياجات خاصة");
-    case StudentType::Unknown: return QObject::tr("غير معروف");
     default:
         return QObject::tr("غير معروف");
     }

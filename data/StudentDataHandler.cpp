@@ -1564,6 +1564,96 @@ QVector<DataModel::Student> DataAccess::StudentDataHandler::searchStudentsByStat
     return QVector<DataModel::Student>();
 }
 
+QVector<DataModel::Student> DataAccess::StudentDataHandler::getStudentsByType(const DataModel::StudentType &type)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical()<< "\033[31m Database isn't open " << db.lastError().text();
+        Logger::instance().error("Database isn't open " + db.lastError().text());
+        return QVector<DataModel::Student>();
+    }
+
+    try
+    {
+
+        QSqlQuery query(db);
+        query.setForwardOnly(true);
+        query.prepare(R"(
+                        SELECT DISTINCT
+                e.enrollment_id AS student_id,
+                e.enrollment_number AS student_number,
+               
+                p.person_id,
+                p.first_name,
+                p.second_name,
+                p.third_name,
+                p.fourth_name,
+                p.gender,
+                p.date_of_birth,
+
+                --e.start_date AS enrollment_date,
+                --e.end_date AS graduation_date,
+                
+                se.class_id AS current_class_id,
+                se.year_id AS current_year_id,
+                e.status AS enrollment_status,
+                se.final_average AS current_average,
+                se.rank_in_class AS current_rank,
+                se.is_eligible_for_exam,
+                c.name AS class_name,
+                c.section AS class_section,
+                c.grade_level,
+                ay.name AS year_name,
+                es.name AS stage_name
+            FROM enrollment e 
+            JOIN people USING (person_id)
+            JOIN student_enrollment se USING (enrollment_id)
+            JOIN classes c USING (class_id)
+            JOIN academic_year ay USING(year_id)
+            JOIN education_stage es USING (stage_id)
+            WHERE e.role = 0
+            AND se.status = 1
+            AND (
+                (:tp = 1 AND se.final_average BETWEEN 50 AND 89)
+            OR 
+                (:tp = 2 AND se.final_average >= 90)
+            OR 
+                (:tp = 3 AND se.final_average < 50)
+            )
+
+            AND (se.end_date IS NULL OR se.end_date > CURRENT_DATE)
+            )");
+            query.bindValue(":tp", static_cast<int>(type));
+
+            if(!query.exec())
+            {
+                qCritical() << "\033[31m Failed to execute get stuednts by tyoe \033[0m " << query.lastError().text();
+                Logger::instance().error("Failed to execute get students by type " + query.lastError().text());
+                return QVector<DataModel::Student>(); 
+            }
+
+            QVector<DataModel::Student> students;
+            while(query.next())
+            {
+                students.append(createStudentFromQuery(query));
+            }
+              qInfo() << "\033[32m Found" << students.size() << "students search:\033[0m";
+              return students;
+            
+    }
+    catch(const std::exception& e)
+    {
+        qCritical() << "\033[31m Exception occurred while getting students by class:\033[0m" << e.what();
+        Logger::instance().error("Exception occurred while getting students by class: " + QString(e.what()));
+        return QVector<DataModel::Student>();
+    }
+    
+    return QVector<DataModel::Student>();
+}
+
 // private members
 DataModel::Student DataAccess::StudentDataHandler::createStudentFromQuery(const QSqlQuery& query)
 {
