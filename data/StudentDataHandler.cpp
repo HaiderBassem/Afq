@@ -1501,6 +1501,7 @@ QVector<DataModel::Student> DataAccess::StudentDataHandler::searchStudentsByStat
     try
     {
         QSqlQuery query(db);
+        query.setForwardOnly(true);
         query.prepare(R"(
             SELECT DISTINCT
                 e.enrollment_id AS student_id,
@@ -1653,6 +1654,47 @@ QVector<DataModel::Student> DataAccess::StudentDataHandler::getStudentsByType(co
     
     return QVector<DataModel::Student>();
 }
+
+int DataAccess::StudentDataHandler::getStudentsCount()
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+    if(!db.isOpen())
+    {
+        qCritical()<< "\033[31m Database isn't open " << db.lastError().text();
+        Logger::instance().error("Database isn't open " + db.lastError().text());
+        return 0;
+    }
+    try
+    {
+        QSqlQuery query(db);
+        query.setForwardOnly(true);
+        query.prepare(R"(
+            SELECT COUNT()
+            FROM enrollment 
+            WHERE role = 0
+            )");
+
+        if(!query.exec() || !query.next())
+        {
+                qCritical() << "\033[31m Failed to execute get stuednts by tyoe \033[0m " << query.lastError().text();
+                Logger::instance().error("Failed to execute get students by type " + query.lastError().text());
+                return 0; 
+        }
+        
+        return query.value(0).toInt();
+    }
+    catch(const std::exception& e)
+    {
+        qCritical() << "\033[31m Exception occurred while getting students count:\033[0m" << e.what();
+        Logger::instance().error("Exception occurred while getting students count: " + QString(e.what()));
+        return 0;
+    }
+    
+    return 0;
+}
+
+
 
 // private members
 DataModel::Student DataAccess::StudentDataHandler::createStudentFromQuery(const QSqlQuery& query)

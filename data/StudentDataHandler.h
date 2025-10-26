@@ -50,7 +50,7 @@ public:
     // reports
 
     static int getStudentsCount();
-    static int getActiveStudentsCount();
+    static int getActiveStudentsCount(); // I will complete this tmrw
     static int getInactiveStudentCount();
     static int getGraduatedStudentsCount();
     static int getStudentsCountByClass(int classId, int yearId);
