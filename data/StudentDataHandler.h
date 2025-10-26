@@ -41,8 +41,8 @@ public:
 
     static QVector<DataModel::Student> searchStudentsByName(const QString& fNmae, const QString& sName ="", const QString& tName = "",const QString& ftName ="", std::optional<int> classId= std::nullopt, const QString& section="",int yearId = 0);
     static DataModel::Student searchStudentByStudentNumber(const QString& studentNumber);
-    static QVector<DataModel::Student> getStudentsByClass(const QString& className,const QString& section ,int yearId);
-    static QVector<DataModel::Student> getStudentsByClass(const QString& className, int yearId); // build this tmrw ...
+    static QVector<DataModel::Student> getStudentsByClass(const QString& className,int yearId, const QString& section= "");
+    static QVector<DataModel::Student> getStudentsByClass(const QString& className, int yearId); 
     static QVector<DataModel::Student> searchStudentsByStatus(const DataModel::StudentStatus& status);
     static QVector<DataModel::Student> getStudentsByType(const DataModel::StudentType& type);
 

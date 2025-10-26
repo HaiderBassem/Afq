@@ -1366,33 +1366,37 @@ QString queryStr = R"(
     return DataModel::Student();
 }
 
-QVector<DataModel::Student> DataAccess::StudentDataHandler::getStudentsByClass(const QString &className, const QString &section, int yearId)
+QVector<DataModel::Student> DataAccess::StudentDataHandler::getStudentsByClass(const QString &className, int yearId, const QString &section)
 {
     const auto& connWrapper = DatabaseManager::instance().getConnection();
     QSqlDatabase db = connWrapper->database();
-    QVector<DataModel::Student> students;
 
-    if(db.isOpen())
+
+    if(!db.isOpen())
     {
-        qCritical() << "\033[31m Database isn't open \033[0m" << db.lastError().text();
-        Logger::instance().error("Database isn't open " + db.lastError().text());
-        return QVector<DataModel::Student>();
+        qCritical() <<"\033[31m Database isn't open. \033[0m" <<db.lastError().text();
+        Logger::instance().error("Database isn't open. " + db.lastError().text());
+        return QVector<DataModel::Student>(); 
     }
 
-    try{
+    try
+    {
         QString queryStr = R"(
-            SELECT DISTINC
+            SELECT DISTINCT
                 e.enrollment_id AS student_id,
                 e.enrollment_number AS student_number,
-                p.person_id, 
+               
+                p.person_id,
                 p.first_name,
                 p.second_name,
                 p.third_name,
                 p.fourth_name,
                 p.gender,
                 p.date_of_birth,
-                e.start_date AS enrollment_date,
-                e.end_date AS graduation_date,
+
+                --e.start_date AS enrollment_date,
+                --e.end_date AS graduation_date,
+                
                 se.class_id AS current_class_id,
                 se.year_id AS current_year_id,
                 e.status AS enrollment_status,
@@ -1405,76 +1409,81 @@ QVector<DataModel::Student> DataAccess::StudentDataHandler::getStudentsByClass(c
                 ay.name AS year_name,
                 es.name AS stage_name
             FROM enrollment e 
-            JOIN people p ON e.person_id = p.person_id
-            JOIN student_enrollment se ON e.enrollment_id = se.enrollment_id
-            JOIN classes c ON se.class_id = c.class_id 
-            JOIN academic_year ay ON se.year_id = ay.year_id 
-            JOIN education_stages es ON c.stage_id = es.stage_id
-            WHERE e.role = 0 -- just students 
-            AND se.status = 1 -- active students
+            JOIN people USING (person_id)
+            JOIN student_enrollment se USING (enrollment_id)
+            JOIN classes c USING (class_id)
+            JOIN academic_year ay USING(year_id)
+            JOIN education_stage es USING (stage_id)
+            WHERE e.role = 0
+            AND se.status = 1
             AND (se.end_date IS NULL OR se.end_date > CURRENT_DATE)
+
         )";
 
-   
-        std::vector<std::pair<std::string, std::variant<int,std::string>>> conditionsAndValues; // TODO: edit all lambda exp. to be like this  
 
-        auto addCondition = [&](const std::string& value, const std::variant<int,std::string>& condition)
+        std::vector<std::pair<std::string, std::variant<int, std::string>>> conditionsAndValues;
+        
+        auto addCondition = [&](const std::string& condition, const std::variant<int, std::string>& value)
         {
-            if(!value.empty())
-            {
-                conditionsAndValues.push_back({value,condition});
-            }
+            conditionsAndValues.push_back({condition, value});
         };
-
-        if(!className.isEmpty()) addCondition("c.name LIKE ?",  std::variant<int,std::string>{ className.toStdString() + "%"} );
-        if(!section.isEmpty()) addCondition("c.section LIKE ?", std::variant<int,std::string>{section.toStdString() + "%"});
-        if(yearId > 0) addCondition("se.year_id = ?",std::variant<int,std::string>{yearId});
+        
+        if(!className.isEmpty()) 
+            addCondition("c.name LIKE ?", std::variant<int, std::string>{className.toStdString() + "%"});
+        if(!section.isEmpty())
+            addCondition("c.section LIKE ?", std::variant<int, std::string>{section.toStdString() + "%"});
+        if(yearId > 0)
+            addCondition("se.year_id LIKE ?", std::variant<int, std::string>{yearId});
 
         if(!conditionsAndValues.empty())
         {
             QStringList condList;
-            for(const auto& [condStr, value] : conditionsAndValues)
+            for(const auto& [condStr, _] : conditionsAndValues)
                 condList.append(QString::fromStdString(condStr));
-            queryStr += " AND " + condList.join( " AND ");
+            queryStr += " AND " + condList.join(" AND ");
         }
 
         QSqlQuery query(db);
         query.setForwardOnly(true);
         query.prepare(queryStr);
 
-  for (const auto& [condStr, value] : conditionsAndValues)
-    {
-        std::visit([&query](auto&& arg)
+        for(const auto& [_, value] : conditionsAndValues)
         {
-            using T = std::decay_t<decltype(arg)>;
-            if constexpr (std::is_same_v<T, std::string>)
-                query.addBindValue(QString::fromStdString(arg));
-            else
-                query.addBindValue(arg);
-        }, value);
-    }
+            std::visit([&query](auto&& arg)
+            {
+                using T = std::decay_t<decltype(arg)>; //? what is the type 
+                if constexpr (std::is_same_v<T,std::string>)
+                    query.addBindValue(QString::fromStdString(arg));
+                else
+                    query.addBindValue(arg);
+            }, value);
+        }
 
-         if (!query.exec()) 
-         {
-            qCritical() << "\033[31m Failed to get students by class:\033[0m" << query.lastError().text();
-            Logger::instance().error("Failed to get students by class: " + query.lastError().text());
+        if(!query.exec())
+        {
+            qCritical() <<"\033[31m Failed to get students by class\0330m" <<query.lastError().text();
+            Logger::instance().error("Failed to get stuednts by class " + query.lastError().text());
             return QVector<DataModel::Student>();
         }
+        QVector<DataModel::Student> students;
         while(query.next())
         {
             students.append(createStudentFromQuery(query));
         }
-        qInfo() << "\033[32m Found" << students.size() << "students in class search:\033[0m"
+          qInfo() << "\033[32m Found" << students.size() << "students in class search:\033[0m"
                 << "Class:" << className << "Section:" << section << "Year:" << yearId;
+
         return students;
+
     }
-    catch (const std::exception& e) 
+
+    catch(const std::exception& e)
     {
         qCritical() << "\033[31m Exception occurred while getting students by class:\033[0m" << e.what();
         Logger::instance().error("Exception occurred while getting students by class: " + QString(e.what()));
-        return students;
+        return QVector<DataModel::Student>();
     }
-
+    
     return QVector<DataModel::Student>();
 }
 
