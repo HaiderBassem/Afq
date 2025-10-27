@@ -50,15 +50,16 @@ public:
     // reports
 
     static int getStudentsCount();
-    static int getActiveStudentsCount(); // I will complete this tmrw
+    static int getActiveStudentsCount(); 
     static int getInactiveStudentCount();
     static int getGraduatedStudentsCount();
     static int getStudentsCountByClass(int classId, int yearId);
     static int getStudentsCountByStatus(DataModel::StudentStatus status);
     static int getStudentsCountByAcademicYear(int yearId);
     static int getStudentsCountByType(DataModel::StudentType type);
-    static QMap<DataModel::StudentStatus, int> getStudentsCountByStatus();
-    static QMap<DataModel::StudentType, int> getStudentsCountByType();
+    static QVector<QPair<QString, int>> getGraduatedStudentsCountOrderByYear();
+   // static QMap<DataModel::StudentStatus, int> getStudentsCountByStatus();
+   // static QMap<DataModel::StudentType, int> getStudentsCountByType();
 
     // checking
 

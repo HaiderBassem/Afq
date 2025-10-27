@@ -1670,7 +1670,7 @@ int DataAccess::StudentDataHandler::getStudentsCount()
         QSqlQuery query(db);
         query.setForwardOnly(true);
         query.prepare(R"(
-            SELECT COUNT()
+            SELECT COUNT(*)
             FROM enrollment 
             WHERE role = 0
             )");
@@ -1694,7 +1694,179 @@ int DataAccess::StudentDataHandler::getStudentsCount()
     return 0;
 }
 
+int DataAccess::StudentDataHandler::getActiveStudentsCount()
+{
+ const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+    if(!db.isOpen())
+    {
+        qCritical()<< "\033[31m Database isn't open " << db.lastError().text();
+        Logger::instance().error("Database isn't open " + db.lastError().text());
+        return 0;
+    }
+    try
+    {
+        QSqlQuery query(db);
+        query.setForwardOnly(true);
+        query.prepare(R"(
+            SELECT COUNT(*)
+            FROM enrollment 
+            WHERE role = 0 -- students only
+            AND status = 1 -- active status only
+            )");
 
+        if(!query.exec() || !query.next())
+        {
+                qCritical() << "\033[31m Failed to execute get stuednts by tyoe \033[0m " << query.lastError().text();
+                Logger::instance().error("Failed to execute get students by type " + query.lastError().text());
+                return 0; 
+        }
+        
+        return query.value(0).toInt();
+    }
+    catch(const std::exception& e)
+    {
+        qCritical() << "\033[31m Exception occurred while getting students count:\033[0m" << e.what();
+        Logger::instance().error("Exception occurred while getting students count: " + QString(e.what()));
+        return 0;
+    }
+    
+    return 0;
+}
+
+int DataAccess::StudentDataHandler::getInactiveStudentCount()
+{
+ const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+    if(!db.isOpen())
+    {
+        qCritical()<< "\033[31m Database isn't open " << db.lastError().text();
+        Logger::instance().error("Database isn't open " + db.lastError().text());
+        return 0;
+    }
+    try
+    {
+        QSqlQuery query(db);
+        query.setForwardOnly(true);
+        query.prepare(R"(
+            SELECT COUNT(*)
+            FROM enrollment 
+            WHERE role = 0 -- students only
+            AND status = 0 -- Inactive status only
+            )");
+
+        if(!query.exec() || !query.next())
+        {
+                qCritical() << "\033[31m Failed to execute get stuednts by tyoe \033[0m " << query.lastError().text();
+                Logger::instance().error("Failed to execute get students by type " + query.lastError().text());
+                return 0; 
+        }
+        
+        return query.value(0).toInt();
+    }
+    catch(const std::exception& e)
+    {
+        qCritical() << "\033[31m Exception occurred while getting students count:\033[0m" << e.what();
+        Logger::instance().error("Exception occurred while getting students count: " + QString(e.what()));
+        return 0;
+    }
+    
+    return 0;
+}
+
+int DataAccess::StudentDataHandler::getGraduatedStudentsCount()
+{
+ const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+    if(!db.isOpen())
+    {
+        qCritical()<< "\033[31m Database isn't open " << db.lastError().text();
+        Logger::instance().error("Database isn't open " + db.lastError().text());
+        return 0;
+    }
+    try
+    {
+        QSqlQuery query(db);
+        query.setForwardOnly(true);
+        query.prepare(R"(
+            SELECT COUNT(*)
+            FROM enrollment 
+            WHERE role = 0 -- students only
+            AND status = 2 -- graduated students only
+            )");
+
+        if(!query.exec() || !query.next())
+        {
+                qCritical() << "\033[31m Failed to execute get stuednts by tyoe \033[0m " << query.lastError().text();
+                Logger::instance().error("Failed to execute get students by type " + query.lastError().text());
+                return 0; 
+        }
+        
+        return query.value(0).toInt();
+    }
+    catch(const std::exception& e)
+    {
+        qCritical() << "\033[31m Exception occurred while getting students count:\033[0m" << e.what();
+        Logger::instance().error("Exception occurred while getting students count: " + QString(e.what()));
+        return 0;
+    }
+    
+    return 0;
+}
+
+QVector<QPair<QString, int>> DataAccess::StudentDataHandler::getGraduatedStudentsCountOrderByYear()
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+    if(!db.isOpen())
+    {
+        qCritical()<< "\033[31m Database isn't open " << db.lastError().text();
+        Logger::instance().error("Database isn't open " + db.lastError().text());
+        return QVector<QPair<QString, int>>();
+    }
+
+    try{
+        QSqlQuery query(db);
+        query.setForwardOnly(true);
+        query.prepare(R"(
+                SELECT 
+                    ay.name AS academic_year_name,
+                    COUNT(*) AS total_graduated
+                FROM student_enrollment se
+                JOIN academic_year ay USING (year_id)
+                WHERE se.status = 2
+                GROUP BY ay.name
+                ORDER BY ay.name;
+            )");
+
+            if(!query.exec())
+            {
+                qCritical() << "\033[31m Failed to execute getGraduatedStudentsCountOrderByYear query \033[0m"<< query.lastError().text();
+                Logger::instance().error("Failed to execute getGraduatedStudentsCountOrderByYear query ");
+                return QVector<QPair<QString, int>>(); 
+            }
+            QVector<QPair<QString, int>> graduatedYearPair;
+
+            while(query.next())
+            {
+                QString yearName = query.value(0).toString();
+                int totalGraduated = query.value(1).toInt();
+                graduatedYearPair.append(qMakePair(yearName, totalGraduated));
+            }
+
+            return graduatedYearPair;
+
+
+    }
+    catch (const std::exception& e)
+    {
+        qCritical() << "\033[31m Exception occurred while getting students count:\033[0m" << e.what();
+        Logger::instance().error("Exception occurred while getting students count: " + QString(e.what()));
+        return QVector<QPair<QString, int>>();
+    }
+
+    return QVector<QPair<QString, int>>();
+}
 
 // private members
 DataModel::Student DataAccess::StudentDataHandler::createStudentFromQuery(const QSqlQuery& query)
