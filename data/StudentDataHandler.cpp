@@ -2093,6 +2093,7 @@ bool DataAccess::StudentDataHandler::calculateRankForStudentInClass(int classId,
 
 bool DataAccess::StudentDataHandler::isStudentExists(int studentId, const QSqlDatabase& db)
 {
+
     if (!db.isOpen())
     {
         qCritical() << "\033[31m Database connection is not open\033[0m";
@@ -2124,6 +2125,99 @@ bool DataAccess::StudentDataHandler::isStudentExists(int studentId, const QSqlDa
     return false;
 }
 
+bool DataAccess::StudentDataHandler::isStudentExists(const QString &studentNumber)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+    
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database isn't open " << db.lastError().text();
+        Logger::instance().error("Database is not open " + db.lastError().text());
+        return false;
+    }
+
+    try
+    {
+        QSqlQuery query(db);
+        query.setForwardOnly(true);
+        query.prepare(R"(
+            SELECT EXISTS(
+                SELECT 1 FROM enrollment
+                WHERE student_number = ?
+                LIMIT 1
+        )
+            )");
+            query.addBindValue(studentNumber);
+
+
+            if (!query.exec() || !query.next())
+            {
+                qCritical() << "\033[31m Failed to execute \033[0m"<< query.lastError().text();
+                Logger::instance().error("Failed to execute " + query.lastError().text());
+                return false; 
+            }
+
+            return query.value(0).toBool();
+            
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        return false;
+    }
+}
+
+bool DataAccess::StudentDataHandler::isStudentEnrolled(const QString &studentNumber, int yearId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+        if (!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open\033[0m" << db.lastError().text();
+        Logger::instance().error("Database connection is not open ");
+        return false;
+    }
+
+    try
+    {
+        QSqlQuery query(db);
+        query.setForwardOnly(true);
+        query.prepare(R"(
+            SELECT EXISTS(
+                SELECT 1 
+                    FROM student_enrollment se
+                    JOIN enrollment e USING (enrollment_id)
+                    WHERE e.enrollment_number = ?
+                    AND se.year_id = ?
+                    AND se.status = 1
+                    AND (se.end_date IS NULL OR se.end_date > CURRENT_DATE)
+            ) AS is_enrolled
+            )");
+        query.addBindValue(studentNumber);
+        query.addBindValue(yearId);
+        if (!query.exec()) 
+        {
+            qCritical() << "\033[31m Failed to check student enrollment:\033[0m" << query.lastError().text();
+            Logger::instance().error("Failed to check student enrollment: " + query.lastError().text());
+            return false;
+        }
+
+        if (query.next()) 
+        {
+            bool isEnrolled = query.value("is_enrolled").toBool();
+            
+            qDebug() << "Student" << studentNumber << "enrolled in year" << yearId << ":" << isEnrolled;
+            return isEnrolled;
+        }
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    return false;
+}
+
 bool DataAccess::StudentDataHandler::isStudentActive(int studentId, const QSqlDatabase& db)
 {
     if (!db.isOpen())
@@ -2137,10 +2231,12 @@ bool DataAccess::StudentDataHandler::isStudentActive(int studentId, const QSqlDa
     QSqlQuery chkQuery(db);
     chkQuery.setForwardOnly(true);
     chkQuery.prepare(R"(
-        SELECT 1 FROM enrollment
-        WHERE enrollment_id = ? AND role = 0 AND status = 1 -- Active status
-        LIMIT 1
-    )");
+        SELECT EXISTS(
+            SELECT 1 FROM enrollment
+            WHERE enrollment_id = ? AND role = 0 AND status = 1 -- Active status
+            LIMIT 1
+    )
+)");
 
     chkQuery.addBindValue(studentId);
     if(chkQuery.exec() && chkQuery.next())
@@ -2149,8 +2245,6 @@ bool DataAccess::StudentDataHandler::isStudentActive(int studentId, const QSqlDa
         qInfo() << "\033[32m Student is active with ID: \033[0m" << studentId;
         return chkQuery.value(0).toBool();
     } 
-
-    return chkQuery.value(0).toBool();
 }
 catch (const std::exception& e)
 {
@@ -2160,15 +2254,69 @@ catch (const std::exception& e)
 }   
    
 }
-
-bool DataAccess::StudentDataHandler::shouldStudentPass(int studentId, int classId, int yearId, double passMark, const QSqlDatabase& db)
+bool DataAccess::StudentDataHandler::isStudentGraduated(int studentId)
 {
-    QSqlQuery getStudentInfo(db);
-    getStudentInfo.prepare(R"(
-            SELECT             
-        )");
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+    if (!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open\033[0m";
+        Logger::instance().error("Database connection is not open for checking student activity");
+        return false;
+    }
+
+    try
+    {
+        QSqlQuery query(db);
+        query.setForwardOnly(true);
+        query.prepare(R"(
+            SELECT EXISTS(
+                SELECT 1 FROM student_enrollment
+                WHERE status = 2
+                AND student_enrollment_id = ? 
+            )
+            )");
+        if(!query.exec())
+        {
+            qCritical() << "\033[31mFailed to execute query:\033[0m" << query.lastError().text();
+            Logger::instance().error("Failed to execute query: " + query.lastError().text());
+            return false;
+        }
+
+        if(!query.next())
+        {
+            qCritical() << "\033[31mNo result returned for student enrollment check\033[0m";
+            return false;
+        }
+
+        return query.value(0).toBool();
+
+            
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    
     return false;
 }
+
+
+//TODO: I will done it tmrw ... 
+
+// bool DataAccess::StudentDataHandler::canGraduateStudent(int studentId)
+// {
+//     return false;
+// }
+// // TODO: complete this function ...
+// bool DataAccess::StudentDataHandler::shouldStudentPass(int studentId, int classId, int yearId, double passMark, const QSqlDatabase& db)
+// {
+//     QSqlQuery getStudentInfo(db);
+//     getStudentInfo.prepare(R"(
+//             SELECT             
+//         )");
+//     return false;
+// }
 
 bool DataAccess::StudentDataHandler::evaluateAllSubjectsAbove50(int studentId, int classId, int yearId, const QSqlDatabase &db)
 {

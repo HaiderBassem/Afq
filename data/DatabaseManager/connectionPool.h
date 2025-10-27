@@ -26,7 +26,7 @@ private:
                    const QString& dbName,
                    const QString& user,
                    const QString& password,
-                   int poolSize = 5);
+                   int poolSize = 10);
 
     void releaseConnection(const QString& connectionName);
 
