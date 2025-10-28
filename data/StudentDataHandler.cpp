@@ -2091,6 +2091,8 @@ bool DataAccess::StudentDataHandler::calculateRankForStudentInClass(int classId,
     return false;
 }
 
+
+
 bool DataAccess::StudentDataHandler::isStudentExists(int studentId, const QSqlDatabase& db)
 {
 
@@ -2301,13 +2303,85 @@ bool DataAccess::StudentDataHandler::isStudentGraduated(int studentId)
     return false;
 }
 
+ 
 
-//TODO: I will done it tmrw ... 
+bool DataAccess::StudentDataHandler::canGraduateStudent(int studentId)
+{
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    QSqlDatabase db = connWrapper->database();
 
-// bool DataAccess::StudentDataHandler::canGraduateStudent(int studentId)
-// {
-//     return false;
-// }
+        if (!db.isOpen()) 
+    {
+        qCritical() << "\033[31m Database connection is not open\033[0m";
+        Logger::instance().error("Database connection is not open");
+        return false;
+    }
+    if(!db.transaction())
+    {
+        qCritical() << "\033[31m Failed to start transaction. \033[0m" << db.lastError().text();
+        Logger::instance().error("Failed to start transaction. " + db.lastError().text());
+        return false;
+    }
+
+    try
+    {
+        if(!isStudentActive(studentId, db))
+        {
+            qWarning() <<"\033[33m Student not active\033[0m";
+            return false;
+        }
+
+        QSqlQuery currentClassQuery(db);
+        currentClassQuery.setForwardOnly(true);
+        currentClassQuery.prepare(R"(
+            SELECT se.class_id, se.year_id, c.grade_level, es.max_grade
+            FROM student_enrollment se
+            JOIN classes c ON se.class_id = c.class_id
+            JOIN education_stages es ON c.stage_id = es.stage_id 
+            WHERE se.enrollment_id = ?
+            AND se.status = 1
+            AND (se.end_date IS NULL OR se.end_date > CURRENT_DATE)
+            LIMIT 1
+        )");
+        currentClassQuery.addBindValue(studentId);
+
+        if(!currentClassQuery.exec() || !currentClassQuery.next())
+        {
+            qWarning() <<"\033[33m Could not find current class for student.\033[0m \033[31m\n OR ERROR: " <<currentClassQuery.lastError().text();           
+            if(currentClassQuery.lastError().text() != "")
+            Logger::instance().error(currentClassQuery.lastError().text());
+            return false;
+        }
+
+        int classId = currentClassQuery.value("class_id").toInt();
+        int yearId = currentClassQuery.value("year_id").toInt();
+        int currentGrade = currentClassQuery.value("grade_level").toInt();
+        //int maxGrade= currentClassQuery.value("max_grade").toInt(); //TODO: I will add it later 
+        if(!isFinalGrade(currentGrade))
+        {
+            qWarning() << "\033[33m Studnet is not in final grage level. Current grade is: \033[0m" << currentGrade;
+            return false;
+        }
+
+        if(!evaluateAllSubjectsAbove50(studentId, classId, yearId, db)) 
+        {
+            qWarning() << "\033[33m Student failed in some subjects\033[0m";
+            return false;
+        }
+
+        //TODO: cheak the total absences here
+
+        
+          qInfo() << "\033[32m Student" << studentId << "is eligible for graduation\033[0m";
+          return true;
+    }
+    catch(const std::exception& e)
+    {
+        qCritical() << "\033[31m Exception occurred while checking graduation eligibility:\033[0m" << e.what();
+        Logger::instance().error("Exception occurred while checking graduation eligibility: " + QString(e.what()));
+        return false;
+    }
+}
 // // TODO: complete this function ...
 // bool DataAccess::StudentDataHandler::shouldStudentPass(int studentId, int classId, int yearId, double passMark, const QSqlDatabase& db)
 // {
@@ -2317,6 +2391,8 @@ bool DataAccess::StudentDataHandler::isStudentGraduated(int studentId)
 //         )");
 //     return false;
 // }
+
+
 
 bool DataAccess::StudentDataHandler::evaluateAllSubjectsAbove50(int studentId, int classId, int yearId, const QSqlDatabase &db)
 {
@@ -2374,4 +2450,9 @@ bool DataAccess::StudentDataHandler::evaluateAllSubjectsAbove50(int studentId, i
         }
     }
     return allSubjectsPass;
+}
+
+bool DataAccess::StudentDataHandler::isFinalGrade(int Grade)
+{
+    return (Grade == 6 || 9 || 12) ?  true : false;
 }

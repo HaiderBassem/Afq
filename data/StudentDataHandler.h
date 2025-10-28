@@ -122,6 +122,7 @@ private:
 
     static bool calculateIfShouldRepeat(int lastClassId, int classId, double lastAverage, const QSqlDatabase& db);
     static bool calculateRankForStudentInClass(int classId, int yearId);
+    static bool isFinalGrade(int Grade);
 
 };
 }
