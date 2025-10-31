@@ -8,7 +8,7 @@
 #include <QMap>
 #include <QJsonArray>
 #include <QPair>
-
+#include "DataModel/Person.h"
 
 namespace DataAccess
 {

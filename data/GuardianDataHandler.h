@@ -6,6 +6,8 @@
 #include<QString>
 #include<QDate>
 #include<optional>
+#include"DataModel/Guardian.h"
+#include"DataModel/StudentGuardian.h"
 
 namespace DataAccess {
 
