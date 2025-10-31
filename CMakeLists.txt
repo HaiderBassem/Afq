@@ -85,8 +85,31 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 # Test executable
-add_executable(AfqTests test/test_addStudent.cpp)
-target_include_directories(AfqTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_executable(AfqTests
+    test/test_addStudent.cpp
+    test/test_main.cpp
+    data/PeopleDataHandler.cpp
+    data/Logger.cpp
+    data/LoggerWorker.cpp
+    data/DatabaseManager/connectionPool.cpp
+    data/DatabaseManager/connectionWrapper.cpp
+    data/DatabaseManager/databaseManager.cpp
+    DataModel/Person.cpp
+)
+
+
+
+target_include_directories(AfqTests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/data
+    ${CMAKE_CURRENT_SOURCE_DIR}/DataModel
+)
+
 target_link_libraries(AfqTests PRIVATE GTest::gtest_main Qt6::Core Qt6::Sql)
+
+
+
 include(GoogleTest)
 gtest_discover_tests(AfqTests)
+
+
