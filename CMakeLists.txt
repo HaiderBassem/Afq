@@ -29,6 +29,13 @@ qt_add_executable(AFQ
     data/DatabaseManager/connectionWrapper.cpp
     data/DatabaseManager/databaseManager.cpp
     data/PeopleDataHandler.cpp
+
+    #Headers
+    data/Logger.h
+    data/DatabaseManager/connectionPool.h
+    data/DatabaseManager/connectionWrapper.h
+    data/DatabaseManager/databaseManager.h
+    data/PeopleDataHandler.h
 )
 
 # QML module

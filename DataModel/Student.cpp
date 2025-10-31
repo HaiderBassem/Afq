@@ -195,7 +195,15 @@ bool Student::set_person_id(int id)
     return false;
 }
 
-
+bool Student::set_student_enroolment_id(int id)
+{
+    if(id > 0)
+    {
+        this->student_enroolment_id = id;
+        return true;
+    }
+    return false;
+}
 
 bool Student::set_first_name(const QString &fname)
 {

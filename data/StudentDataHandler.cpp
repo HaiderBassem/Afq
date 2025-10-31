@@ -450,9 +450,10 @@ DataModel::Student DataAccess::StudentDataHandler::getStudentById(int studentId)
         QSqlQuery query(db);
         query.setForwardOnly(true);
         query.prepare(R"(
-            SELECTC 
+        SELECT 
             e.enrollment_id AS student_id,
-            e.person_id,
+            p.person_id,
+            se.student_enrollment_id,
             
             p.first_name,
             p.second_name,
@@ -465,12 +466,12 @@ DataModel::Student DataAccess::StudentDataHandler::getStudentById(int studentId)
             e.start_date AS enrollment_date,
             e.end_date AS graduation_date,
             e.status AS enrollment_status,
-            
+
             se.class_id AS current_class_id,
             se.year_id AS current_year_id,
             se.final_average AS current_average,
-            se.rank_in_calss AS current_rank,
-            se.repeat_count 
+            se.rank_in_class AS current_rank,
+            se.repeat_count,
             se.is_graduated,
             se.is_repeated,
             se.is_ministerial_exam,
@@ -481,14 +482,17 @@ DataModel::Student DataAccess::StudentDataHandler::getStudentById(int studentId)
             c.grade_level,
             ay.name AS year_name
         FROM enrollment e
-        LEFT JOIN people p ON e.person_id = p.peron_id
-        LEFT JOUN student_enrollment se ON e.enrollment_id = se.enrollment_id 
+        LEFT JOIN people p ON e.person_id = p.person_id
+        LEFT JOIN student_enrollment se 
+            ON e.enrollment_id = se.enrollment_id 
             AND (se.end_date IS NULL OR se.end_date > CURRENT_DATE)
         LEFT JOIN classes c ON se.class_id = c.class_id
-        LEFT JOIN academic_years ay ON se.year_id = ay.year_id
-        WHERE e.enrollment_id = ? AND e.role = 0
+        LEFT JOIN academic_year ay ON se.year_id = ay.year_id
+        WHERE e.enrollment_id = ? 
+        AND e.role = 0
         ORDER BY se.start_date DESC
-        LIMIT 1 
+        LIMIT 1;
+
             )");
 
             query.addBindValue(studentId);
@@ -501,8 +505,6 @@ DataModel::Student DataAccess::StudentDataHandler::getStudentById(int studentId)
 
             auto student = createStudentFromQuery(query);
             return student;
-    
-    return DataModel::Student();
 
 }
     catch (const std::exception& e)
@@ -531,7 +533,6 @@ QVector<DataModel::Student> DataAccess::StudentDataHandler::getAllStudents()
 
 
     QSqlQuery query(db);
-    query.setForwardOnly(true); 
     
 
     query.prepare(R"(
@@ -1387,7 +1388,7 @@ QVector<DataModel::Student> DataAccess::StudentDataHandler::getStudentsByClass(c
             SELECT DISTINCT
                 e.enrollment_id AS student_id,
                 e.enrollment_number AS student_number,
-               
+                se.student_enrollment_id,
                 p.person_id,
                 p.first_name,
                 p.second_name,
@@ -1878,6 +1879,7 @@ DataModel::Student DataAccess::StudentDataHandler::createStudentFromQuery(const 
 
     student.set_person_id(query.value("person_id").toInt());
     student.set_student_id(query.value("enrollment_id").toInt());
+    student.set_student_enroolment_id(query.value("student_enrollment_id").toInt());
     
 
     student.set_first_name(query.value("first_name").toString());
@@ -2458,6 +2460,77 @@ bool DataAccess::StudentDataHandler::evaluateAllSubjectsAbove50(int studentId, i
 
 DataModel::StudentEnrollment DataAccess::StudentDataHandler::getStudentEnrollmentById(int enrollmentId)
 {
+
+    const auto& connWrapper = DatabaseManager::instance().getConnection();
+    const QSqlDatabase& db = connWrapper->database();
+
+    if(!db.isOpen())
+    {
+        qCritical() << "\033[31m Database connection is not open\033[0m";
+        Logger::instance().error("Database connection is not open for getting student by ID");
+        return DataModel::Student();
+    }
+    try{
+        QSqlQuery query(db);
+        query.setForwardOnly(true);
+        query.prepare(R"(
+            SELECTC 
+            e.enrollment_id,
+            e.person_id,
+            
+            p.first_name,
+            p.second_name,
+            p.third_name,
+            p.fourth_name,
+            p.gender,
+            p.date_of_birth,
+            
+            e.enrollment_number AS student_number,
+            e.start_date AS enrollment_date,
+            e.end_date AS graduation_date,
+            e.status AS enrollment_status,
+            
+            se.class_id AS current_class_id,
+            se.year_id AS current_year_id,
+            se.final_average AS current_average,
+            se.rank_in_calss AS current_rank,
+            se.repeat_count 
+            se.is_graduated,
+            se.is_repeated,
+            se.is_ministerial_exam,
+            se.is_eligible_for_exam,
+
+            c.name AS class_name,
+            c.section,
+            c.grade_level,
+            ay.name AS year_name
+        FROM enrollment e
+        LEFT JOIN people p ON e.person_id = p.peron_id
+        LEFT JOUN student_enrollment se ON e.enrollment_id = se.enrollment_id 
+            AND (se.end_date IS NULL OR se.end_date > CURRENT_DATE)
+        LEFT JOIN classes c ON se.class_id = c.class_id
+        LEFT JOIN academic_years ay ON se.year_id = ay.year_id
+        WHERE se.enrollment_id = ? AND e.role = 0
+        ORDER BY se.start_date DESC
+        LIMIT 1 
+            )");
+
+            query.addBindValue(enrollmentId);
+            if(!query.exec() || !query.next())
+            {
+                qCritical() << "\033[31m Student not found with ID: \033[0m" << studentId;
+                Logger::instance().error("Student not found with ID: " + QString::number(studentId));
+                return DataModel::Student();
+            }
+            DataModel::StudentEnrollment student = createStudentFromQuery(query);
+            return student;
+        }
+        catch(const std::exception& e)
+        {
+            qCritical() << "Error: " <<e.what() << "\n";
+            return DataModel::StudentEnrollment();
+        }
+
     return DataModel::StudentEnrollment();
 }
 

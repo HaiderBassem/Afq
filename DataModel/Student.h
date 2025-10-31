@@ -98,6 +98,7 @@ public:
     // Setters
     bool set_student_id(int id);
     bool set_person_id(int id);
+    bool set_student_enroolment_id(int id);
     bool set_first_name(const QString &fname);
     bool set_second_name(const QString &sname);
     bool set_third_name(const QString &tname);
@@ -121,6 +122,7 @@ public:
 private:
     int student_id;
     int person_id;
+    int student_enroolment_id;
     QString student_number;
     QString first_name;
     QString second_name;
