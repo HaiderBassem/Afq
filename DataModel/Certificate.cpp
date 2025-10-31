@@ -4,6 +4,8 @@ namespace DataModel
 {
     
 
+    
+
 bool Certificate::isValid() const
 {
     return student_enrollment_id > 0 &&

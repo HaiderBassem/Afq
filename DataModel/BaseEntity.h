@@ -1,3 +1,6 @@
+#pragma once
+
+
 #include<QJsonObject>
 #include<QString>
 namespace DataModel

@@ -7,7 +7,8 @@
 #include "DataModel/BaseEntity.h"
 
 
-
+namespace DataModel
+{
 
 enum class EnrollmentRole
 {
@@ -60,30 +61,19 @@ inline QString enrollmentStatusToString(EnrollmentStatus s)
     }
 }
 
-inline EnrollmentRole intToEnrollmentRole(int value) 
+
+inline EnrollmentRole intToEnrollmentRole(int i)
 {
-    switch (value) {
-        case 1: return EnrollmentRole::Student;
-        case 2: return EnrollmentRole::Teacher;
-        case 3: return EnrollmentRole::Staff;
-        case 4: return EnrollmentRole::Administrator;
-        default: return EnrollmentRole::Unknown;
-    }
+    if (i >= 0 && i <= 3) return static_cast<EnrollmentRole>(i);
+    return EnrollmentRole::Unknown;
 }
 
-inline EnrollmentStatus intToEnrollmentStatus(int value) 
+inline EnrollmentStatus intToEnrollmentStatus(int i)
 {
-    switch (value) {
-        case 1: return EnrollmentStatus::Active;
-        case 2: return EnrollmentStatus::Inactive;
-        case 3: return EnrollmentStatus::Transferred;
-        case 4: return EnrollmentStatus::Dismissed;
-        case 5: return EnrollmentStatus::Withdrawn;
-        case 6: return EnrollmentStatus::Failed;
-        case 7: return EnrollmentStatus::Postponed;
-        default: return EnrollmentStatus::Unknown;
-    }
+    if (i >= 0 && i <= 7) return static_cast<EnrollmentStatus>(i);
+    return EnrollmentStatus::Unknown;
 }
+
 
 
 class Enrollment : public BaseEntity
@@ -112,3 +102,4 @@ public:
     bool isActive() const;
     int getDurationInDays() const;
 };
+}

@@ -116,6 +116,7 @@ public:
     bool set_current_average(double avg);
     bool set_current_rank(int rank);
     bool set_student_number(const QString &number);
+    
 
 private:
     int student_id;

@@ -1116,7 +1116,7 @@ bool DataAccess::AcademicYearDataHandler::closeAcademicYear(int yearId)
 
         if(!checkQuery.exec() || !checkQuery.next())
         {
-            qCritical() <<"\033[31m Academic year not found with ID: " + yearId;
+            qCritical() <<"\033[31m Academic year not found with ID: " << yearId;
             Logger::instance().error("Academic year noy found with ID: " + QString::number(yearId));
             db.rollback();
             return false;

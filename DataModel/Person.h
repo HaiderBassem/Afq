@@ -6,7 +6,6 @@
 #include <QDateTime>
 #include <QJsonObject>
 #include"DataModel/BaseEntity.h"
-#include"DataModel/Person.h"
 
 
 namespace DataModel

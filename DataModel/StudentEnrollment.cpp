@@ -4,43 +4,6 @@
 namespace DataModel
 {
 
-inline EnrollmentRole intToEnrollmentRole(int i)
-{
-    if (i >= 0 && i <= 3) return static_cast<EnrollmentRole>(i);
-    return EnrollmentRole::Unknown;
-}
-inline EnrollmentStatus intToEnrollmentStatus(int i)
-{
-    if (i >= 0 && i <= 7) return static_cast<EnrollmentStatus>(i);
-    return EnrollmentStatus::Unknown;
-}
-
-inline QString enrollmentRoleToString(EnrollmentRole r)
-{
-    switch (r) {
-    case EnrollmentRole::Student: return QObject::tr("Student");
-    case EnrollmentRole::Teacher: return QObject::tr("Teacher");
-    case EnrollmentRole::Staff: return QObject::tr("Staff");
-    case EnrollmentRole::Administrator: return QObject::tr("Administrator");
-    default: return QObject::tr("Unknown");
-    }
-}
-
-inline QString enrollmentStatusToString(EnrollmentStatus s)
-{
-    switch (s) {
-    case EnrollmentStatus::Active: return QObject::tr("Active");
-    case EnrollmentStatus::Inactive: return QObject::tr("Inactive");
-    case EnrollmentStatus::Graduate: return QObject::tr("Graduate");
-    case EnrollmentStatus::Transferred: return QObject::tr("Transferred");
-    case EnrollmentStatus::Dismissed: return QObject::tr("Dismissed");
-    case EnrollmentStatus::Withdrawn: return QObject::tr("Withdrawn");
-    case EnrollmentStatus::Failed: return QObject::tr("Failed");
-    case EnrollmentStatus::Postponed: return QObject::tr("Postponed");
-    default: return QObject::tr("Unknown");
-    }
-}
-
 
 bool StudentEnrollment::isValid() const
 {

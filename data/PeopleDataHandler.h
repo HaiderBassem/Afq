@@ -1,7 +1,5 @@
-#ifndef PEOPLEDATAHANDLER_H
-#define PEOPLEDATAHANDLER_H
+#pragma once
 
-#include "DataModel.h"
 #include <optional>
 #include <QString>
 #include <QVector>
@@ -54,4 +52,3 @@ public:
 
 } // namespace DataAccess
 
-#endif // PEOPLEDATAHANDLER_H

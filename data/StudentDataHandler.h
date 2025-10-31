@@ -1,7 +1,14 @@
 #ifndef STUDENTDATAHANDLER_H
 #define STUDENTDATAHANDLER_H
 
-#include"DataModel/Student.h"
+#include "DataModel/Student.h"
+#include "DataModel/StudentEnrollment.h"
+#include "DataModel/StudentSummary.h"
+#include "DataModel/Enrollment.h"
+
+
+
+
 #include<QString>
 #include<QVector>
 #include<QMap>
@@ -71,7 +78,7 @@ public:
     static bool isStudentGraduated(int studentId);
     static bool canGraduateStudent(int studentId);
     //static bool isStudentPassedAllSubjects(int studentId);
-    static bool shouldStudentPass(int studentId, int classId, int yearId, double passMark = 50.0, const QSqlDatabase& db);
+    static bool shouldStudentPass(int studentId, int classId, int yearId, double passMark = 50.0, const QSqlDatabase& db = QSqlDatabase());
     static bool evaluateAllSubjectsAbove50(int studentId, int classId, int yearId, const QSqlDatabase& db);
 
 

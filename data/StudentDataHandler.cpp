@@ -4,6 +4,8 @@
 #include"PeopleDataHandler.h"
 #include"GuardianDataHandler.h"
 #include"DataModel/Student.h"
+#include"DataModel/Enrollment.h"
+#include"DataModel/StudentEnrollment.h"
 
 #include<QSqlQuery>
 #include<QSqlError>
@@ -1911,10 +1913,10 @@ DataModel::Student DataAccess::StudentDataHandler::createStudentFromQuery(const 
     QVariant rank = query.value("rank_in_class");
     student.set_current_rank(rank.isNull() ? 0 : rank.toInt());
     
-    student.set_repeat_count(query.value("repeat_count").toInt());
-    student.set_is_graduated(query.value("is_graduated").toBool());
-    student.set_is_ministerial_exam(query.value("is_ministerial_exam").toBool());
-    student.set_is_eligible_for_exam(query.value("is_eligible_for_exam").toBool());
+   // student.set_repeat_count(query.value("repeat_count").toInt());
+   // student.set_is_graduated(query.value("is_graduated").toBool());
+    //student.set_is_ministerial_exam(query.value("is_ministerial_exam").toBool());
+    //student.set_is_eligible_for_exam(query.value("is_eligible_for_exam").toBool());
     
 
     QVariant className = query.value("class_name");
@@ -1922,7 +1924,7 @@ DataModel::Student DataAccess::StudentDataHandler::createStudentFromQuery(const 
         student.set_current_class_name(className.toString());
     }
     
-    student.set_grade_level(query.value("grade_level").toInt());
+   // student.set_grade_level(query.value("grade_level").toInt());
     
     QVariant yearName = query.value("academic_year_name");
     if (!yearName.isNull()) {
@@ -2254,8 +2256,9 @@ catch (const std::exception& e)
     Logger::instance().error("Exception occurred while checking student activity: " + QString(e.what()));
      return false;
 }   
-   
+ return false;   
 }
+
 bool DataAccess::StudentDataHandler::isStudentGraduated(int studentId)
 {
     const auto& connWrapper = DatabaseManager::instance().getConnection();
@@ -2450,6 +2453,12 @@ bool DataAccess::StudentDataHandler::evaluateAllSubjectsAbove50(int studentId, i
         }
     }
     return allSubjectsPass;
+}
+// TODO: compelete this function tmrw
+
+DataModel::StudentEnrollment DataAccess::StudentDataHandler::getStudentEnrollmentById(int enrollmentId)
+{
+    return DataModel::StudentEnrollment();
 }
 
 bool DataAccess::StudentDataHandler::isFinalGrade(int Grade)

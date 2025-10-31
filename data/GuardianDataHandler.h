@@ -1,7 +1,7 @@
-#ifndef GUARDIANDATAHANDLER_H
-#define GUARDIANDATAHANDLER_H
 
-#include"DataModel.h"
+#pragma once
+
+#include "DataModel/Guardian.h"
 
 #include<QString>
 #include<QDate>
@@ -61,8 +61,7 @@ public:
 
 private:
     // to prevent create instance
-    GuardianDataHandler() = delete;
-    ~GuardianDataHandler() = delete;
+    // GuardianDataHandler() = delete;
+    // ~GuardianDataHandler() = delete;
 };
 }
-#endif // GUARDIANDATAHANDLER_H

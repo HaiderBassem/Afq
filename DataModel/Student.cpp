@@ -4,6 +4,7 @@
 
 #include <QRegularExpression>
 #include <QStringList>
+#include "Student.h"
 
 namespace DataModel {
 
@@ -174,5 +175,195 @@ void Student::fromJson(const QJsonObject &json) {
     current_rank = json.value("current_rank").toInt();
     total_absences = json.value("total_absences").toInt();
 }
+
+
+bool Student::set_student_id(int id)
+{
+    if (id > 0) {
+        this->student_id = id;
+        return true;
+    }
+    return false;
+}
+
+bool Student::set_person_id(int id)
+{
+    if (id > 0) {
+        this->person_id = id;
+        return true;
+    }
+    return false;
+}
+
+
+
+bool Student::set_first_name(const QString &fname)
+{
+    if(!fname.isEmpty())
+    {
+        this->first_name = fname;
+        return true;
+    }
+    return false;
+}
+bool Student::set_second_name(const QString &sname)
+{
+    if(!sname.isEmpty())
+    {
+        this->second_name = sname;
+        return true;
+    }
+    return false;
+}
+bool Student::set_third_name(const QString &tname)
+{
+    if(!tname.isEmpty())
+    {
+        this->third_name = tname;
+        return true;
+    }
+    return false;
+}
+bool Student::set_fourth_name(const QString &ftname)
+{
+    if(!ftname.isEmpty())
+    {
+        this->fourth_name = ftname;
+        return true;
+    }
+    return false;
+}
+bool Student::set_gender(QChar gender)
+{
+    if (gender == 'M' || gender == 'm' || gender == 'F' || gender == 'f')
+    {
+        this->gender = DataModel::charToGender(gender);
+        return true;
+    }
+    return false;
+}
+bool Student::set_date_of_birth(const QDate &dob)
+{
+    if(dob.isValid())
+    {
+        this->date_of_birth = dob;
+        return true;
+    }
+    return false;
+}
+
+
+
+
+bool Student::set_status(StudentStatus s)
+{
+    if (s != StudentStatus::Unknown) { // تأكد أن الحالة صالحة حسب enum
+        this->status = s;
+        return true;
+    }
+    return false;
+}
+
+bool Student::set_enrollment_date(const QDate &ed)
+{
+    if (ed.isValid()) {
+        this->enrollment_date = ed;
+        return true;
+    }
+    return false;
+}
+
+bool Student::set_graduation_date(const QDate &gd)
+{
+    if (gd.isValid()) {
+        this->graduation_date = gd;
+        return true;
+    }
+    return false;
+}
+
+bool Student::set_phone(const QString &phone)
+{
+    if (!phone.isEmpty()) {
+        this->phone = phone;
+        return true;
+    }
+    return false;
+}
+
+bool Student::set_section(const QString &sec)
+{
+    if (!sec.isEmpty()) {
+        this->section = sec;
+        return true;
+    }
+    return false;
+}
+
+bool Student::set_current_class_id(int id)
+{
+    if (id > 0) {
+        this->current_class_id = id;
+        return true;
+    }
+    return false;
+}
+
+bool Student::set_current_class_name(const QString &name)
+{
+    if (!name.isEmpty()) {
+        this->current_class_name = name;
+        return true;
+    }
+    return false;
+}
+
+bool Student::set_current_year_id(int id)
+{
+    if (id > 0) {
+        this->current_year_id = id;
+        return true;
+    }
+    return false;
+}
+
+bool Student::set_current_year_name(const QString &name)
+{
+    if (!name.isEmpty()) {
+        this->current_year_name = name;
+        return true;
+    }
+    return false;
+}
+
+bool Student::set_current_average(double avg)
+{
+    if (avg >= 0.0) {
+        this->current_average = avg;
+        return true;
+    }
+    return false;
+}
+
+bool Student::set_current_rank(int rank)
+{
+    if (rank >= 0) {
+        this->current_rank = rank;
+        return true;
+    }
+    return false;
+}
+
+bool Student::set_student_number(const QString &number)
+{
+    if (!number.isEmpty()) {
+        this->student_number = number;
+        return true;
+    }
+    return false;
+}
+
+
+
 
 } // namespace DataModel

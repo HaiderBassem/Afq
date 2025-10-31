@@ -1,7 +1,8 @@
 #ifndef ACADEMICYEARDATAHANDLER_H
 #define ACADEMICYEARDATAHANDLER_H
 
-#include "DataModel.h"
+#include"DataModel/AcademicYear.h"
+#include"DataModel/Holiday.h"
 
 #include <optional>
 
