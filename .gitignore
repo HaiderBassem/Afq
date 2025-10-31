@@ -64,6 +64,9 @@ CMakeLists.txt.user*
 # VS code 
 .vscode/
 
+
+.idea
+
 # MinGW generated files
 *.Debug
 *.Release
