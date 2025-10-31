@@ -61,6 +61,9 @@ CMakeLists.txt.user*
 *.vcxproj
 *vcxproj.*
 
+# VS code 
+.vscode/
+
 # MinGW generated files
 *.Debug
 *.Release
@@ -80,3 +83,6 @@ CMakeLists.txt.user*
 .rcc/
 .uic/
 /build*/
+
+
+
