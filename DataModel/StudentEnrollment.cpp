@@ -5,6 +5,7 @@ namespace DataModel
 {
 
 
+
 bool StudentEnrollment::isValid() const
 {
     return enrollment_id > 0 &&
@@ -15,9 +16,9 @@ bool StudentEnrollment::isValid() const
 
 
 bool StudentEnrollment::shouldPromote() const
-    {
-        return status == StudentStatus::Active && !is_repeated && final_average >= 50.0;
-    }
+{
+    return status == StudentEnrollmentStatus::Active && !is_repeated && final_average >= 50.0;
+}
 
 
 
@@ -57,7 +58,7 @@ void StudentEnrollment::fromJson(const QJsonObject& json)
     year_id = json["year_id"].toInt();
     start_date = QDate::fromString(json["start_date"].toString(), Qt::ISODate);
     end_date = QDate::fromString(json["end_date"].toString(), Qt::ISODate);
-    status = static_cast<StudentStatus>(json["status"].toInt());
+    status = static_cast<StudentEnrollmentStatus>(json["status"].toInt());
     repeat_count = json["repeat_count"].toInt();
     is_graduated = json["is_graduated"].toBool();
     is_repeated = json["is_repeated"].toBool();

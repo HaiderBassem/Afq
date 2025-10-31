@@ -124,7 +124,7 @@ private:
 
     static DataModel::Student createStudentFromQuery(const QSqlQuery& query);
     static DataModel::StudentSummary createStudentSummaryFromQuery(const QSqlQuery& query);
-    //std::unique_ptr<DataModel::Student> createStudentEnrollmentFromQuery(const QSqlQuery& query);
+    static DataModel::StudentEnrollment createStudentEnrollmentFromQuery(const QSqlQuery& query);
     
 
     static bool calculateIfShouldRepeat(int lastClassId, int classId, double lastAverage, const QSqlDatabase& db);
@@ -132,5 +132,5 @@ private:
     static bool isFinalGrade(int Grade);
 
 };
-}
+} // DataAccess 
 #endif // STUDENTDATAHANDLER_H

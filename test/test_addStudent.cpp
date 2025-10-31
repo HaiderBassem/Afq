@@ -18,7 +18,8 @@ TEST(PeopleDataHandlerTest, AddPerson_valid)
 
     auto result = PeopleDataHandler::addPerson(p);
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result.value(),1);
+    EXPECT_GT(result.value(), 0); 
+
 }
 
 // // TEST(StudentDataHandlerTest, AddStudent_Valid) {

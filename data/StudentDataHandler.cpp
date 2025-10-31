@@ -1097,7 +1097,7 @@ bool DataAccess::StudentDataHandler::graduateStudent(int studentId, int classId,
         return false;
     }
 
-    int studentEnrollmentId = getStudentEnrollmentById(studentId).enrollment_id; // student id = student enrollment id 
+    int studentEnrollmentId = getStudentEnrollmentById(studentId).student_enrollment_id; // student id = student enrollment id 
     // TODO: check the student at end level of studying
    try{
     QSqlQuery updateEnrollmentQuery(db);
@@ -1936,6 +1936,45 @@ DataModel::Student DataAccess::StudentDataHandler::createStudentFromQuery(const 
     return student;
 }
 
+DataModel::StudentEnrollment DataAccess::StudentDataHandler::createStudentEnrollmentFromQuery(const QSqlQuery &query)
+{
+    DataModel::StudentEnrollment enrollment;
+
+    enrollment.student_enrollment_id = query.value("student_enrollment_id").toInt();
+    enrollment.enrollment_id = query.value("enrollment_id").toInt();
+    enrollment.class_id = query.value("class_id").toInt();
+    enrollment.year_id = query.value("year_id").toInt();
+    enrollment.start_date = query.value("start_date").toDate();
+    enrollment.end_date = query.value("end_date").toDate();
+
+    int status = query.value("status").toInt();
+    enrollment.status = static_cast<DataModel::StudentEnrollmentStatus>(status);
+    
+    enrollment.repeat_count = query.value("repeat_count").toInt();
+    enrollment.is_graduated = query.value("is_graduated").toBool();
+    enrollment.is_repeated = query.value("is_repeated").toBool();
+    enrollment.final_average = query.value("final_average").toDouble();
+    enrollment.rank_in_class = query.value("rank_in_class").toInt();
+    enrollment.is_ministerial_exam = query.value("is_ministerial_exam").toBool();
+    enrollment.is_eligible_for_exam = query.value("is_eligible_for_exam").toBool();
+    enrollment.notes = query.value("notes").toString();
+    enrollment.enrollment_number = query.value("enrollment_number").toString();
+
+    enrollment.student_name = QString("%1 %2 %3 %4")
+        .arg(query.value("first_name").toString())
+        .arg(query.value("second_name").toString())
+        .arg(query.value("third_name").toString())
+        .arg(query.value("fourth_name").toString())
+        .trimmed();
+        
+    enrollment.class_name = query.value("class_name").toString();
+    enrollment.section = query.value("section").toString();
+    enrollment.year_name = query.value("year_name").toString();
+    enrollment.class_name = query.value("class_name").toString();
+
+    return DataModel::StudentEnrollment();
+}
+
 bool DataAccess::StudentDataHandler::calculateIfShouldRepeat(int lastClassId, int newClassId, double lastAverage, const QSqlDatabase& db)
 {
     if (lastClassId == newClassId)
@@ -2458,83 +2497,82 @@ bool DataAccess::StudentDataHandler::evaluateAllSubjectsAbove50(int studentId, i
 }
 // TODO: compelete this function tmrw
 
-DataModel::StudentEnrollment DataAccess::StudentDataHandler::getStudentEnrollmentById(int enrollmentId)
+DataModel::StudentEnrollment DataAccess::StudentDataHandler::getStudentEnrollmentById(int studentEnrollmentId)
 {
 
     const auto& connWrapper = DatabaseManager::instance().getConnection();
-    const QSqlDatabase& db = connWrapper->database();
-
-    if(!db.isOpen())
-    {
+    QSqlDatabase db = connWrapper->database();
+    
+    if (!db.isOpen()) {
         qCritical() << "\033[31m Database connection is not open\033[0m";
-        Logger::instance().error("Database connection is not open for getting student by ID");
-        return DataModel::Student();
+        return DataModel::StudentEnrollment();
     }
-    try{
+
+    try {
         QSqlQuery query(db);
-        query.setForwardOnly(true);
         query.prepare(R"(
-            SELECTC 
-            e.enrollment_id,
-            e.person_id,
-            
-            p.first_name,
-            p.second_name,
-            p.third_name,
-            p.fourth_name,
-            p.gender,
-            p.date_of_birth,
-            
-            e.enrollment_number AS student_number,
-            e.start_date AS enrollment_date,
-            e.end_date AS graduation_date,
-            e.status AS enrollment_status,
-            
-            se.class_id AS current_class_id,
-            se.year_id AS current_year_id,
-            se.final_average AS current_average,
-            se.rank_in_calss AS current_rank,
-            se.repeat_count 
-            se.is_graduated,
-            se.is_repeated,
-            se.is_ministerial_exam,
-            se.is_eligible_for_exam,
+            SELECT 
+                se.student_enrollment_id,
+                se.enrollment_id,
+                se.class_id,
+                se.year_id,
+                se.start_date,
+                se.end_date,
+                se.status,
+                se.repeat_count,
+                se.is_graduated,
+                se.is_repeated,
+                se.final_average,
+                se.rank_in_class,
+                se.is_ministerial_exam,
+                se.is_eligible_for_exam,
+                se.notes,
+                se.created_at,
+                se.updated_at,
+                e.enrollment_number,
+                p.first_name,
+                p.second_name,
+                p.third_name,
+                p.fourth_name,
+                c.name as class_name,
+                c.section as class_section,
+                c.grade_level,
+                ay.name as year_name
+            FROM student_enrollment se
+            JOIN enrollment e ON se.enrollment_id = e.enrollment_id
+            JOIN people p ON e.person_id = p.person_id
+            JOIN classes c ON se.class_id = c.class_id
+            JOIN academic_year ay ON se.year_id = ay.year_id
+            WHERE se.student_enrollment_id = ?
+            LIMIT 1
+        )");
 
-            c.name AS class_name,
-            c.section,
-            c.grade_level,
-            ay.name AS year_name
-        FROM enrollment e
-        LEFT JOIN people p ON e.person_id = p.peron_id
-        LEFT JOUN student_enrollment se ON e.enrollment_id = se.enrollment_id 
-            AND (se.end_date IS NULL OR se.end_date > CURRENT_DATE)
-        LEFT JOIN classes c ON se.class_id = c.class_id
-        LEFT JOIN academic_years ay ON se.year_id = ay.year_id
-        WHERE se.enrollment_id = ? AND e.role = 0
-        ORDER BY se.start_date DESC
-        LIMIT 1 
-            )");
+        query.addBindValue(studentEnrollmentId);
 
-            query.addBindValue(enrollmentId);
-            if(!query.exec() || !query.next())
-            {
-                qCritical() << "\033[31m Student not found with ID: \033[0m" << studentId;
-                Logger::instance().error("Student not found with ID: " + QString::number(studentId));
-                return DataModel::Student();
-            }
-            DataModel::StudentEnrollment student = createStudentFromQuery(query);
-            return student;
-        }
-        catch(const std::exception& e)
-        {
-            qCritical() << "Error: " <<e.what() << "\n";
+        if (!query.exec()) {
+            qCritical() << "\033[31m Failed to get student enrollment by ID:\033[0m" << query.lastError().text();
+            Logger::instance().error("Failed to get student enrollment by ID: " + query.lastError().text());
             return DataModel::StudentEnrollment();
         }
 
-    return DataModel::StudentEnrollment();
+        DataModel::StudentEnrollment enrollment;
+        if (query.next()) {
+            enrollment = createStudentEnrollmentFromQuery(query);
+            qDebug() << "\033[32m Successfully retrieved enrollment ID:\033[0m" << studentEnrollmentId;
+        } else {
+            qWarning() << "\033[33m Student enrollment not found with ID:\033[0m" << studentEnrollmentId;
+        }
+
+        return enrollment;
+
+    } catch (const std::exception& e) {
+        qCritical() << "\033[31m Exception occurred while getting student enrollment by ID:\033[0m" << e.what();
+        Logger::instance().error("Exception occurred while getting student enrollment by ID: " + QString(e.what()));
+        return DataModel::StudentEnrollment();
+    }
 }
 
 bool DataAccess::StudentDataHandler::isFinalGrade(int Grade)
 {
-    return (Grade == 6 || 9 || 12) ?  true : false;
+    return (Grade == 6 || Grade == 9 || Grade == 12) ?  true : false;
 }
