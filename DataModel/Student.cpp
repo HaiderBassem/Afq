@@ -265,7 +265,7 @@ bool Student::set_date_of_birth(const QDate &dob)
 
 bool Student::set_status(StudentStatus s)
 {
-    if (s != StudentStatus::Unknown) { // تأكد أن الحالة صالحة حسب enum
+    if (s != StudentStatus::Unknown) { // check the status of the student isn't unknown, this status will be just initial value for all students
         this->status = s;
         return true;
     }
